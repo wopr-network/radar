@@ -21,6 +21,25 @@ const SEARCH_ISSUES_QUERY = `
   }
 `;
 
+const SEARCH_ALL_ISSUES_QUERY = `
+  query SearchAllIssues($first: Int, $after: String) {
+    issues(first: $first, after: $after) {
+      nodes {
+        id
+        identifier
+        title
+        description
+        state { type name }
+        labels { nodes { name } }
+      }
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+    }
+  }
+`;
+
 const ISSUE_WITH_RELATIONS_QUERY = `
   query IssueWithRelations($id: String!) {
     issue(id: $id) {
@@ -115,7 +134,7 @@ export class LinearClient {
     this.apiKey = config.apiKey;
   }
 
-  async searchIssues(filter: { stateName: string; first?: number }): Promise<LinearSearchIssue[]> {
+  async searchIssues(filter: { stateName?: string; first?: number }): Promise<LinearSearchIssue[]> {
     const pageSize = filter.first ?? 50;
     const allIssues: LinearSearchIssue[] = [];
     let cursor: string | null = null;
@@ -127,10 +146,16 @@ export class LinearClient {
           Authorization: this.apiKey,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          query: SEARCH_ISSUES_QUERY,
-          variables: { stateName: filter.stateName, first: pageSize, after: cursor ?? undefined },
-        }),
+        body:
+          filter.stateName !== undefined
+            ? JSON.stringify({
+                query: SEARCH_ISSUES_QUERY,
+                variables: { stateName: filter.stateName, first: pageSize, after: cursor ?? undefined },
+              })
+            : JSON.stringify({
+                query: SEARCH_ALL_ISSUES_QUERY,
+                variables: { first: pageSize, after: cursor ?? undefined },
+              }),
       });
 
       if (!res.ok) {

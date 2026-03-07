@@ -62,13 +62,9 @@ export class LinearPoller {
   }
 
   private async _doPoll(): Promise<void> {
-    const byState = new Map<string, LinearWatchConfig[]>();
-    // Note: poll mode defaults to "Todo" when no state filter is set, because polling
-    // fetches all open issues and would otherwise return too broad a result set.
-    // Webhook mode has no such default — it receives all change events and filters
-    // them individually. This intentional asymmetry avoids unnecessary API load.
+    const byState = new Map<string | null, LinearWatchConfig[]>();
     for (const watch of this.watches) {
-      const state = watch.filter.state ?? "Todo";
+      const state = watch.filter.state ?? null;
       const existing = byState.get(state) ?? [];
       existing.push(watch);
       byState.set(state, existing);
@@ -77,9 +73,9 @@ export class LinearPoller {
     for (const [stateName, watches] of byState) {
       let issues: LinearSearchIssue[];
       try {
-        issues = await this.linearClient.searchIssues({ stateName });
+        issues = await this.linearClient.searchIssues(stateName !== null ? { stateName } : {});
       } catch (err) {
-        console.error(`[LinearPoller] Failed to fetch issues for state=${stateName}:`, err);
+        console.error(`[LinearPoller] Failed to fetch issues for state=${stateName ?? "all"}:`, err);
         continue;
       }
 

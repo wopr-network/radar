@@ -12,16 +12,16 @@ const LinearWebhookPayloadSchema = z.object({
   action: z.enum(["create", "update", "remove"]),
   type: z.string(),
   data: z.object({
-    id: z.string(),
-    identifier: z.string(),
-    title: z.string(),
+    id: z.string().min(1),
+    identifier: z.string().min(1),
+    title: z.string().min(1),
     description: z.string().nullable().optional(),
     // Nested-object format (used in some contexts)
-    state: z.object({ name: z.string(), type: z.string() }).optional(),
-    labels: z.array(z.object({ name: z.string() })).optional(),
+    state: z.object({ name: z.string().min(1), type: z.string().min(1) }).optional(),
+    labels: z.array(z.object({ name: z.string().min(1) })).optional(),
     // Flat ID format (real Linear webhook payloads)
-    stateId: z.string().optional(),
-    labelIds: z.array(z.string()).optional(),
+    stateId: z.string().min(1).optional(),
+    labelIds: z.array(z.string().min(1)).optional(),
   }),
 });
 
