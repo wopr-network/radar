@@ -32,6 +32,9 @@ describe("LinearClient", () => {
               },
             ],
           },
+          inverseRelations: {
+            nodes: [],
+          },
         },
       },
     };

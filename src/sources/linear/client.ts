@@ -19,6 +19,16 @@ const ISSUE_WITH_RELATIONS_QUERY = `
           }
         }
       }
+      inverseRelations {
+        nodes {
+          type
+          relatedIssue {
+            identifier
+            title
+            state { type name }
+          }
+        }
+      }
     }
   }
 `;
@@ -35,6 +45,16 @@ interface GraphQLResponse {
       title: string;
       state: { type: string; name: string };
       relations: {
+        nodes: Array<{
+          type: string;
+          relatedIssue: {
+            identifier: string;
+            title: string;
+            state: { type: string; name: string };
+          };
+        }>;
+      };
+      inverseRelations: {
         nodes: Array<{
           type: string;
           relatedIssue: {
@@ -86,22 +106,34 @@ export class LinearClient {
       throw new Error(`Issue ${issueId} not found`);
     }
 
+    const directRelations: LinearRelation[] = issue.relations.nodes.map((n) => ({
+      type: n.type as LinearRelation["type"],
+      relatedIssue: {
+        identifier: n.relatedIssue.identifier,
+        title: n.relatedIssue.title,
+        state: n.relatedIssue.state as LinearIssue["state"],
+      },
+    }));
+
+    // inverseRelations where type="blocks" mean the related issue blocks this one,
+    // which is semantically equivalent to this issue having a "blocked_by" relation.
+    const inverseRelations: LinearRelation[] = issue.inverseRelations.nodes
+      .filter((n) => n.type === "blocks")
+      .map((n) => ({
+        type: "blocked_by" as LinearRelation["type"],
+        relatedIssue: {
+          identifier: n.relatedIssue.identifier,
+          title: n.relatedIssue.title,
+          state: n.relatedIssue.state as LinearIssue["state"],
+        },
+      }));
+
     return {
       id: issue.id,
       identifier: issue.identifier,
       title: issue.title,
       state: issue.state as LinearIssue["state"],
-      relations: issue.relations.nodes.map(
-        (n) =>
-          ({
-            type: n.type,
-            relatedIssue: {
-              identifier: n.relatedIssue.identifier,
-              title: n.relatedIssue.title,
-              state: n.relatedIssue.state as LinearIssue["state"],
-            },
-          }) as LinearRelation,
-      ),
+      relations: [...directRelations, ...inverseRelations],
     };
   }
 }

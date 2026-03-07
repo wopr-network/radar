@@ -32,7 +32,7 @@ describe("checkBlocking", () => {
         relatedIssue: {
           identifier: "WOP-101",
           title: "Cancelled blocker",
-          state: { type: "cancelled", name: "Cancelled" },
+          state: { type: "canceled", name: "Canceled" },
         },
       },
     ];

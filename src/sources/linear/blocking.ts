@@ -1,6 +1,6 @@
 import type { BlockingCheckResult, LinearRelation } from "./types.js";
 
-const RESOLVED_STATES = new Set(["completed", "cancelled"]);
+const RESOLVED_STATES = new Set(["completed", "canceled"]);
 
 export function checkBlocking(relations: LinearRelation[]): BlockingCheckResult {
   const blockers = relations

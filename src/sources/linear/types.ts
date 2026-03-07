@@ -1,5 +1,5 @@
 export interface LinearIssueState {
-  type: "triage" | "backlog" | "unstarted" | "started" | "completed" | "cancelled";
+  type: "triage" | "backlog" | "unstarted" | "started" | "completed" | "canceled";
   name: string;
 }
 
