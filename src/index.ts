@@ -1,3 +1,9 @@
+export type { NoradDb } from "./db/index.js";
+export { applySchema, createDb } from "./db/index.js";
+export { EventLogRepo } from "./db/repos/event-log-repo.js";
+export { SourceRepo } from "./db/repos/source-repo.js";
+export { WatchRepo } from "./db/repos/watch-repo.js";
+export { WorkerRepo } from "./db/repos/worker-repo.js";
 export { DefconClient } from "./defcon/index.js";
 export { Pool } from "./pool/index.js";
 export type { SlotState, WorkerResult } from "./pool/types.js";
