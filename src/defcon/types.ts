@@ -11,6 +11,7 @@ export type ClaimResponse =
       flow: string;
       stage: string;
       prompt: string;
+      modelTier?: "opus" | "sonnet" | "haiku";
       worker_notice?: string;
     };
 

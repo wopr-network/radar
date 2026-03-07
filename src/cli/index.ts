@@ -15,9 +15,36 @@ program
   .option("-f, --flow <flow>", "Restrict to a specific flow")
   .option("--defcon-url <url>", "DEFCON server URL", "http://localhost:3000")
   .action(async (opts) => {
-    console.log(`[norad] ${opts.workers} worker slots — role: ${opts.role}`);
-    console.log("[norad] not yet implemented");
-    process.exit(0);
+    const { Pool } = await import("../pool/pool.js");
+    const { DefconClient } = await import("../defcon/client.js");
+    const { ClaudeCodeDispatcher } = await import("../dispatcher/claude-code-dispatcher.js");
+    const { RunLoop } = await import("../run-loop/run-loop.js");
+
+    const pool = new Pool(opts.workers);
+    const defcon = new DefconClient({ url: opts.defconUrl });
+    const dispatcher = new ClaudeCodeDispatcher();
+
+    const loop = new RunLoop({
+      pool,
+      defcon,
+      dispatcher,
+      role: opts.role,
+      flow: opts.flow,
+      pollIntervalMs: 5000,
+    });
+
+    console.log(`[norad] Starting ${opts.workers} worker slots — role: ${opts.role}`);
+    loop.start();
+
+    const shutdown = async () => {
+      console.log("[norad] Shutting down gracefully...");
+      await loop.stop();
+      console.log("[norad] All slots stopped.");
+      process.exit(0);
+    };
+
+    process.on("SIGINT", shutdown);
+    process.on("SIGTERM", shutdown);
   });
 
 const VALID_DISCIPLINES = ["engineering", "devops", "qa", "security"] as const;
