@@ -67,8 +67,12 @@ describe("validateBranchName", () => {
     expect(() => validateBranchName("")).toThrow("Invalid branch name");
   });
 
-  it("accepts dot-containing strings (traversal prevention is at path level, not branch name)", () => {
-    expect(validateBranchName("../../../etc/passwd")).toBe("../../../etc/passwd");
+  it("rejects double-dot sequences to prevent path traversal via branch names", () => {
+    expect(() => validateBranchName("../../../etc/passwd")).toThrow("Invalid branch name");
+  });
+
+  it("accepts single-dot branch names (e.g. feature.v2)", () => {
+    expect(validateBranchName("feature.v2")).toBe("feature.v2");
   });
 
   it("throws on branch names with special characters", () => {
