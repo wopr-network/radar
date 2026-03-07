@@ -41,6 +41,10 @@ export class HealthMonitor {
       if (slot.state === "reporting") continue;
       if (now - slot.lastHeartbeat <= this.config.deadWorkerThresholdMs) continue;
 
+      // Capture heartbeat timestamp before the async call so we can detect
+      // a heartbeat arriving during the await (which would change the value).
+      const heartbeatBefore = slot.lastHeartbeat;
+
       if (slot.entityId) {
         try {
           await this.defcon.report({
@@ -54,9 +58,9 @@ export class HealthMonitor {
         }
       }
 
-      // Re-check staleness: heartbeat may have arrived during the await above.
-      // If so, the slot is alive — skip release.
-      if (Date.now() - slot.lastHeartbeat <= this.config.deadWorkerThresholdMs) {
+      // Re-check: if lastHeartbeat advanced during the await, the worker is alive — skip release.
+      if (slot.lastHeartbeat !== heartbeatBefore) {
+        console.error("[health-monitor] warning: heartbeat received during fail report — slot not released");
         continue;
       }
 
