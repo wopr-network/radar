@@ -84,14 +84,14 @@ function adaptWatchRepo(repo: WatchRepo): IWatchRepo {
       const r = repo.getById(id);
       return r ? toApiWatch(r) : undefined;
     },
-    async create(_data: Omit<Watch, "id" | "created_at" | "updated_at">) {
-      return {} as Watch;
+    async create(_data: Omit<Watch, "id" | "created_at" | "updated_at">): Promise<Watch> {
+      throw new Error("unexpected call to adaptWatchRepo.create");
     },
-    async update(_id: string, _data: Partial<Watch>) {
-      return undefined;
+    async update(_id: string, _data: Partial<Watch>): Promise<Watch | undefined> {
+      throw new Error("unexpected call to adaptWatchRepo.update");
     },
-    async delete(_id: string) {
-      return false;
+    async delete(_id: string): Promise<boolean> {
+      throw new Error("unexpected call to adaptWatchRepo.delete");
     },
   };
 }
@@ -325,8 +325,17 @@ describe("Integration smoke test", () => {
     // Step 3: Start RunLoop to drive a claim → dispatch → report cycle
     runLoop.start();
 
-    // Wait for one full cycle (claim → dispatch → report)
-    await vi.waitFor(() => expect(mockDefcon.report).toHaveBeenCalled(), { timeout: 5000 });
+    // Wait for one full cycle (claim → dispatch → report → slot release)
+    // report is called first, then the finally block releases the slot.
+    // Waiting for the slot to drain guarantees report has already been called.
+    await vi.waitFor(
+      () => {
+        // The pool starts empty; only passes after a slot was allocated AND released.
+        expect(mockDefcon.report).toHaveBeenCalled();
+        expect(pool.activeSlots()).toHaveLength(0);
+      },
+      { timeout: 5000 },
+    );
 
     // Step 4: Verify claim was called
     expect(mockDefcon.claim).toHaveBeenCalled();
@@ -348,8 +357,5 @@ describe("Integration smoke test", () => {
         artifacts: { echo: "You are working on a smoke test" },
       }),
     );
-
-    // Step 7: Verify pool is clean (runLoop.stop() called in afterAll)
-    expect(pool.activeSlots()).toHaveLength(0);
   });
 });
