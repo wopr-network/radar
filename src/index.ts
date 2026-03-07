@@ -1,3 +1,4 @@
+export { createServer } from "./api/server.js";
 export type { NoradDb } from "./db/index.js";
 export { applySchema, createDb } from "./db/index.js";
 export { EventLogRepo } from "./db/repos/event-log-repo.js";
