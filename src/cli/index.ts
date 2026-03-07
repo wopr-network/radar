@@ -12,11 +12,13 @@ const VALID_DISCIPLINES = ["engineering", "devops", "qa", "security"] as const;
 program
   .command("run")
   .description("Start the worker pool")
-  .requiredOption("-w, --workers <n>", "Number of worker slots", (v: string) => parseInt(v, 10))
+  .requiredOption("-w, --workers <n>", "Number of worker slots", (v: string) => Number.parseInt(v, 10))
   .requiredOption("-r, --role <role>", "Worker discipline (engineering, devops, qa, security)")
   .option("-f, --flow <flow>", "Restrict to a specific flow")
-  .option("--max-concurrent <n>", "Max concurrent entities for the flow", (v: string) => parseInt(v, 10))
-  .option("--max-concurrent-per-repo <n>", "Max concurrent entities per repo", (v: string) => parseInt(v, 10))
+  .option("--max-concurrent <n>", "Max concurrent entities for the flow", (v: string) => Number.parseInt(v, 10))
+  .option("--max-concurrent-per-repo <n>", "Max concurrent entities per repo", (v: string) => Number.parseInt(v, 10))
+  .option("--worker <type>", "Worker type identifier")
+  .option("--seed <path>", "Seed file path")
   .option("--defcon-url <url>", "DEFCON server URL", "http://localhost:3000")
   .action(async (opts) => {
     if (!(VALID_DISCIPLINES as readonly string[]).includes(opts.role)) {
@@ -37,6 +39,18 @@ program
       process.exit(1);
     }
 
+    if (opts.seed) {
+      const { default: Database } = await import("better-sqlite3");
+      const { loadSeed } = await import("../seed/loader.js");
+      const db = new Database(":memory:");
+      try {
+        const result = await loadSeed(opts.seed as string, { defconUrl: opts.defconUrl as string, db });
+        console.log(`[norad] Seed loaded: ${result.flows} flows, ${result.sources} sources, ${result.watches} watches`);
+      } finally {
+        db.close();
+      }
+    }
+
     const { Pool } = await import("../pool/pool.js");
     const { DefconClient } = await import("../defcon/client.js");
     const { ClaudeCodeDispatcher } = await import("../dispatcher/claude-code-dispatcher.js");
@@ -52,12 +66,15 @@ program
       dispatcher,
       role: opts.role,
       flow: opts.flow,
+      workerIdPrefix: opts.worker,
       pollIntervalMs: 5000,
       maxConcurrent: opts.maxConcurrent,
       maxConcurrentPerRepo: opts.maxConcurrentPerRepo,
     });
 
-    console.log(`[norad] Starting ${opts.workers} worker slots — role: ${opts.role}`);
+    console.log(
+      `[norad] Starting ${opts.workers} worker slots — role: ${opts.role}${opts.flow ? ` — flow: ${opts.flow}` : ""}${opts.worker ? ` — worker: ${opts.worker}` : ""}`,
+    );
     loop.start();
 
     let shuttingDown = false;
