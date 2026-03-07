@@ -77,8 +77,22 @@ export class RunLoop {
     }
   }
 
+  private extractRepoFromPrompt(prompt: string): string | null {
+    const match = prompt.match(/\b([a-zA-Z0-9_-]+\/[a-zA-Z0-9_.-]+)\b/);
+    return match ? match[1] : null;
+  }
+
   private async claimAndProcess(slotId: string, workerId: string): Promise<void> {
     const { defcon, dispatcher, pool, role, flow } = this.config;
+
+    // Concurrency gate: global per-flow limit
+    if (flow != null && this.config.maxConcurrent != null) {
+      const active = pool.activeCountByFlow(flow);
+      if (active >= this.config.maxConcurrent) {
+        await sleep(this.pollIntervalMs, this.signal);
+        return;
+      }
+    }
 
     const claim = await defcon.claim({ workerId, role, flow });
 
@@ -87,7 +101,27 @@ export class RunLoop {
       return;
     }
 
-    const slot = pool.allocate(slotId, workerId, claim.entityId, claim.prompt);
+    const claimFlow = claim.flow ?? flow ?? null;
+    const claimRepo = this.extractRepoFromPrompt(claim.prompt);
+
+    // Concurrency gate: per-repo limit
+    if (claimFlow != null && claimRepo != null && this.config.maxConcurrentPerRepo != null) {
+      const repoActive = pool.activeCountByRepo(claimFlow, claimRepo);
+      if (repoActive >= this.config.maxConcurrentPerRepo) {
+        try {
+          await defcon.report({
+            workerId,
+            entityId: claim.entityId,
+            signal: "crash",
+            artifacts: { error: `per-repo concurrency limit reached for ${claimRepo}` },
+          });
+        } catch {}
+        await sleep(this.pollIntervalMs, this.signal);
+        return;
+      }
+    }
+
+    const slot = pool.allocate(slotId, workerId, claim.entityId, claim.prompt, claimFlow, claimRepo);
     if (!slot) {
       try {
         await defcon.report({

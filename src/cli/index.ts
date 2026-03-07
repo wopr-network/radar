@@ -15,6 +15,8 @@ program
   .requiredOption("-w, --workers <n>", "Number of worker slots", parseInt)
   .requiredOption("-r, --role <role>", "Worker discipline (engineering, devops, qa, security)")
   .option("-f, --flow <flow>", "Restrict to a specific flow")
+  .option("--max-concurrent <n>", "Max concurrent entities for the flow", parseInt)
+  .option("--max-concurrent-per-repo <n>", "Max concurrent entities per repo", parseInt)
   .option("--defcon-url <url>", "DEFCON server URL", "http://localhost:3000")
   .action(async (opts) => {
     if (!(VALID_DISCIPLINES as readonly string[]).includes(opts.role)) {
@@ -38,6 +40,8 @@ program
       role: opts.role,
       flow: opts.flow,
       pollIntervalMs: 5000,
+      maxConcurrent: opts.maxConcurrent,
+      maxConcurrentPerRepo: opts.maxConcurrentPerRepo,
     });
 
     console.log(`[norad] Starting ${opts.workers} worker slots — role: ${opts.role}`);
