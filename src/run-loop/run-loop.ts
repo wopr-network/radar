@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { ClaimResponse, ReportResponse } from "../defcon/types.js";
+import { extractRepoFromDescription } from "../sources/linear/repo-extractor.js";
 import type { RunLoopConfig } from "./types.js";
 
 const DEFAULT_POLL_INTERVAL_MS = 5000;
@@ -31,6 +32,7 @@ export class RunLoop {
   private pollIntervalMs: number;
   private abortController: AbortController | null = null;
   private slotPromises: Map<string, Promise<void>> = new Map();
+  private pendingClaims = 0;
 
   constructor(config: RunLoopConfig) {
     this.config = config;
@@ -80,14 +82,54 @@ export class RunLoop {
   private async claimAndProcess(slotId: string, workerId: string): Promise<void> {
     const { defcon, dispatcher, pool, role, flow } = this.config;
 
-    const claim = await defcon.claim({ workerId, role, flow });
+    // Concurrency gate: global per-flow limit
+    // Use pendingClaims to prevent TOCTOU: multiple slots checking the count
+    // before any of them completes a claim. pending + active must stay < maxConcurrent.
+    if (flow != null && this.config.maxConcurrent != null) {
+      const active = pool.activeCountByFlow(flow);
+      if (active + this.pendingClaims >= this.config.maxConcurrent) {
+        await sleep(this.pollIntervalMs, this.signal);
+        return;
+      }
+    }
+
+    this.pendingClaims++;
+    let claim: ClaimResponse;
+    try {
+      claim = await defcon.claim({ workerId, role, flow });
+    } finally {
+      this.pendingClaims--;
+    }
 
     if (!isWorkClaim(claim)) {
       await sleep(claim.retry_after_ms, this.signal);
       return;
     }
 
-    const slot = pool.allocate(slotId, workerId, claim.entityId, claim.prompt);
+    const claimFlow = claim.flow;
+    const claimRepo = extractRepoFromDescription(claim.prompt);
+
+    // Concurrency gate: per-repo limit — checked BEFORE allocating a slot
+    // so we skip rather than crash the entity
+    if (claimFlow != null && claimRepo != null && this.config.maxConcurrentPerRepo != null) {
+      const repoActive = pool.activeCountByRepo(claimFlow, claimRepo);
+      if (repoActive >= this.config.maxConcurrentPerRepo) {
+        try {
+          await defcon.report({
+            workerId,
+            entityId: claim.entityId,
+            signal: "crash",
+            artifacts: { error: `per-repo concurrency limit reached for ${claimRepo}` },
+          });
+        } catch (err) {
+          console.error("[run-loop] crash report failed:", err);
+        }
+        await sleep(this.pollIntervalMs, this.signal);
+        return;
+      }
+    }
+
+    const slot = pool.allocate(slotId, workerId, claim.entityId, claim.prompt, claimFlow, claimRepo);
     if (!slot) {
       try {
         await defcon.report({

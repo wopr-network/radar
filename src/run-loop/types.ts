@@ -10,4 +10,6 @@ export interface RunLoopConfig {
   flow?: string;
   pollIntervalMs?: number;
   workerIdPrefix?: string;
+  maxConcurrent?: number;
+  maxConcurrentPerRepo?: number;
 }

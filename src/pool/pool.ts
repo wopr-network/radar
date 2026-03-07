@@ -8,7 +8,14 @@ export class Pool {
     this.capacity = capacity;
   }
 
-  allocate(slotId: string, workerId: string, entityId: string, prompt: string): Slot | null {
+  allocate(
+    slotId: string,
+    workerId: string,
+    entityId: string,
+    prompt: string,
+    flowName: string | null = null,
+    repo: string | null = null,
+  ): Slot | null {
     if (this.slots.has(slotId)) throw new Error(`Slot already allocated: ${slotId}`);
     if (this.slots.size >= this.capacity) return null;
     const slot: Slot = {
@@ -18,6 +25,8 @@ export class Pool {
       state: "claimed",
       prompt,
       result: null,
+      flowName,
+      repo,
     };
     this.slots.set(slotId, slot);
     return slot;
@@ -47,5 +56,21 @@ export class Pool {
 
   activeSlots(): Slot[] {
     return Array.from(this.slots.values());
+  }
+
+  activeCountByFlow(flowName: string): number {
+    let count = 0;
+    for (const slot of this.slots.values()) {
+      if (slot.flowName === flowName) count++;
+    }
+    return count;
+  }
+
+  activeCountByRepo(flowName: string, repo: string): number {
+    let count = 0;
+    for (const slot of this.slots.values()) {
+      if (slot.flowName === flowName && slot.repo === repo) count++;
+    }
+    return count;
   }
 }

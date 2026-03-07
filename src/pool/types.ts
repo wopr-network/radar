@@ -13,4 +13,6 @@ export interface Slot {
   state: SlotState;
   prompt: string | null;
   result: WorkerResult | null;
+  flowName: string | null;
+  repo: string | null;
 }

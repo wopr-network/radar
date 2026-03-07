@@ -12,13 +12,28 @@ const VALID_DISCIPLINES = ["engineering", "devops", "qa", "security"] as const;
 program
   .command("run")
   .description("Start the worker pool")
-  .requiredOption("-w, --workers <n>", "Number of worker slots", parseInt)
+  .requiredOption("-w, --workers <n>", "Number of worker slots", (v: string) => parseInt(v, 10))
   .requiredOption("-r, --role <role>", "Worker discipline (engineering, devops, qa, security)")
   .option("-f, --flow <flow>", "Restrict to a specific flow")
+  .option("--max-concurrent <n>", "Max concurrent entities for the flow", (v: string) => parseInt(v, 10))
+  .option("--max-concurrent-per-repo <n>", "Max concurrent entities per repo", (v: string) => parseInt(v, 10))
   .option("--defcon-url <url>", "DEFCON server URL", "http://localhost:3000")
   .action(async (opts) => {
     if (!(VALID_DISCIPLINES as readonly string[]).includes(opts.role)) {
       console.error(`Error: invalid role "${opts.role}". Must be one of: ${VALID_DISCIPLINES.join(", ")}`);
+      process.exit(1);
+    }
+
+    if (opts.maxConcurrent != null && (Number.isNaN(opts.maxConcurrent) || opts.maxConcurrent < 1)) {
+      console.error(`Invalid --max-concurrent: ${opts.maxConcurrent}`);
+      process.exit(1);
+    }
+
+    if (
+      opts.maxConcurrentPerRepo != null &&
+      (Number.isNaN(opts.maxConcurrentPerRepo) || opts.maxConcurrentPerRepo < 1)
+    ) {
+      console.error(`Invalid --max-concurrent-per-repo: ${opts.maxConcurrentPerRepo}`);
       process.exit(1);
     }
 
@@ -38,6 +53,8 @@ program
       role: opts.role,
       flow: opts.flow,
       pollIntervalMs: 5000,
+      maxConcurrent: opts.maxConcurrent,
+      maxConcurrentPerRepo: opts.maxConcurrentPerRepo,
     });
 
     console.log(`[norad] Starting ${opts.workers} worker slots — role: ${opts.role}`);
