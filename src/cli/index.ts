@@ -1,5 +1,7 @@
 #!/usr/bin/env node
+import { randomUUID } from "node:crypto";
 import { Command } from "commander";
+import { renderWorkerPrompt } from "./worker-prompt.js";
 
 const program = new Command();
 
@@ -16,6 +18,24 @@ program
     console.log(`[norad] ${opts.workers} worker slots — role: ${opts.role}`);
     console.log("[norad] not yet implemented");
     process.exit(0);
+  });
+
+const worker = program.command("worker").description("Worker management");
+
+worker
+  .command("new")
+  .description("Register a new worker and print its bootstrap prompt")
+  .requiredOption("-d, --discipline <discipline>", "Worker discipline (engineering, devops, qa, security)")
+  .option("--defcon-url <url>", "DEFCON server URL", "http://localhost:3000")
+  .option("--worker-id <id>", "Use a specific worker ID instead of generating one")
+  .action((opts) => {
+    const workerId = opts.workerId ?? `wkr-${randomUUID()}`;
+    const prompt = renderWorkerPrompt({
+      workerId,
+      discipline: opts.discipline,
+      defconUrl: opts.defconUrl,
+    });
+    console.log(prompt);
   });
 
 program.parse();
