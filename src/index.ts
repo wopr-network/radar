@@ -7,3 +7,5 @@ export { WorkerRepo } from "./db/repos/worker-repo.js";
 export { DefconClient } from "./defcon/index.js";
 export { Pool } from "./pool/index.js";
 export type { SlotState, WorkerResult } from "./pool/types.js";
+export type { LoadSeedDeps, LoadSeedResult, SeedFile, SeedFlow, SeedSource, SeedWatch } from "./seed/index.js";
+export { expandEnvVars, loadSeed } from "./seed/index.js";
