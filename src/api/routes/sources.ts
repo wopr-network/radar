@@ -31,6 +31,9 @@ export function registerSourceRoutes(router: Router, repo: SourceRepo): void {
   });
 
   router.add("PUT", "/api/sources/:id", async (ctx) => {
+    if (ctx.body === null || typeof ctx.body !== "object") {
+      return { status: 400, body: { error: "Request body must be a JSON object" } };
+    }
     const updated = await repo.update(ctx.params.id, ctx.body as Partial<Source>);
     if (!updated) return { status: 404, body: { error: "Source not found" } };
     return { status: 200, body: updated };

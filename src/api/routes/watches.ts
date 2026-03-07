@@ -33,6 +33,9 @@ export function registerWatchRoutes(router: Router, watchRepo: WatchRepo): void 
   });
 
   router.add("PUT", "/api/watches/:id", async (ctx) => {
+    if (ctx.body === null || typeof ctx.body !== "object") {
+      return { status: 400, body: { error: "Request body must be a JSON object" } };
+    }
     const updated = await watchRepo.update(ctx.params.id, ctx.body as Partial<Watch>);
     if (!updated) return { status: 404, body: { error: "Watch not found" } };
     return { status: 200, body: updated };
