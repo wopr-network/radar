@@ -50,13 +50,13 @@ function adaptSourceRepo(repo: SourceRepo): ISourceRepo {
       return r ? toApiSource(r) : undefined;
     },
     async create(_data: Omit<Source, "id" | "created_at" | "updated_at">) {
-      return {} as Source;
+      throw new Error("unexpected call to adaptSourceRepo.create");
     },
     async update(_id: string, _data: Partial<Source>) {
-      return undefined;
+      throw new Error("unexpected call to adaptSourceRepo.update");
     },
     async delete(_id: string) {
-      return false;
+      throw new Error("unexpected call to adaptSourceRepo.delete");
     },
   };
 }
@@ -97,9 +97,10 @@ function adaptWatchRepo(repo: WatchRepo): IWatchRepo {
 }
 
 function adaptEventLogRepo(repo: EventLogRepo): IEventLogRepo {
+  const store: EventLogEntry[] = [];
   return {
     async findAll(_opts?: { limit?: number; offset?: number }) {
-      return [];
+      return [...store];
     },
     async append(data: Omit<EventLogEntry, "id" | "created_at">) {
       const row = repo.append({
@@ -109,7 +110,7 @@ function adaptEventLogRepo(repo: EventLogRepo): IEventLogRepo {
         actionTaken: data.action_taken,
         defconResponse: data.defcon_response as Record<string, unknown> | null,
       });
-      return {
+      const entry: EventLogEntry = {
         id: row.id,
         source_id: row.sourceId,
         watch_id: row.watchId,
@@ -118,6 +119,8 @@ function adaptEventLogRepo(repo: EventLogRepo): IEventLogRepo {
         defcon_response: row.defconResponse,
         created_at: row.createdAt,
       };
+      store.push(entry);
+      return entry;
     },
   };
 }
@@ -323,7 +326,7 @@ describe("Integration smoke test", () => {
     runLoop.start();
 
     // Wait for one full cycle (claim → dispatch → report)
-    await new Promise((r) => setTimeout(r, 300));
+    await vi.waitFor(() => expect(mockDefcon.report).toHaveBeenCalled(), { timeout: 5000 });
 
     // Step 4: Verify claim was called
     expect(mockDefcon.claim).toHaveBeenCalled();
@@ -346,8 +349,7 @@ describe("Integration smoke test", () => {
       }),
     );
 
-    // Step 7: Stop and verify pool is clean
-    await runLoop.stop();
+    // Step 7: Verify pool is clean (runLoop.stop() called in afterAll)
     expect(pool.activeSlots()).toHaveLength(0);
   });
 });
