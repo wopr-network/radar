@@ -10,15 +10,15 @@ function sleep(ms: number, signal?: AbortSignal): Promise<void> {
       resolve();
       return;
     }
-    const timer = setTimeout(resolve, ms);
-    signal?.addEventListener(
-      "abort",
-      () => {
-        clearTimeout(timer);
-        resolve();
-      },
-      { once: true },
-    );
+    const handler = () => {
+      clearTimeout(timer);
+      resolve();
+    };
+    const timer = setTimeout(() => {
+      signal?.removeEventListener("abort", handler);
+      resolve();
+    }, ms);
+    signal?.addEventListener("abort", handler, { once: true });
   });
 }
 
@@ -42,7 +42,7 @@ export class RunLoop {
     this.abortController = new AbortController();
     const { pool } = this.config;
 
-    const capacity = pool.availableSlots() + pool.activeSlots().length;
+    const capacity = pool.availableSlots();
     for (let i = 0; i < capacity; i++) {
       const slotId = `slot-${i}`;
       const workerId = `${this.config.workerIdPrefix ?? "wkr"}-${randomUUID().slice(0, 8)}`;
@@ -60,7 +60,8 @@ export class RunLoop {
   }
 
   private get signal(): AbortSignal {
-    return this.abortController?.signal as AbortSignal;
+    if (!this.abortController) throw new Error("RunLoop is not running");
+    return this.abortController.signal;
   }
 
   private async runSlot(slotId: string, workerId: string): Promise<void> {
@@ -88,12 +89,20 @@ export class RunLoop {
 
     const slot = pool.allocate(slotId, workerId, claim.entityId, claim.prompt);
     if (!slot) {
+      try {
+        await defcon.report({
+          workerId,
+          entityId: claim.entityId,
+          signal: "crash",
+          artifacts: { error: "slot unavailable" },
+        });
+      } catch {}
       await sleep(this.pollIntervalMs, this.signal);
       return;
     }
 
     try {
-      const modelTier = (claim as { modelTier?: "opus" | "sonnet" | "haiku" }).modelTier ?? "sonnet";
+      const modelTier = claim.modelTier ?? "sonnet";
       let currentPrompt = claim.prompt;
       let currentSignal: string | undefined;
       let currentArtifacts: Record<string, unknown> | undefined;

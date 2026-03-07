@@ -7,6 +7,8 @@ const program = new Command();
 
 program.name("norad").description("The only winning move is to have gates.").version("0.1.0");
 
+const VALID_DISCIPLINES = ["engineering", "devops", "qa", "security"] as const;
+
 program
   .command("run")
   .description("Start the worker pool")
@@ -15,6 +17,11 @@ program
   .option("-f, --flow <flow>", "Restrict to a specific flow")
   .option("--defcon-url <url>", "DEFCON server URL", "http://localhost:3000")
   .action(async (opts) => {
+    if (!(VALID_DISCIPLINES as readonly string[]).includes(opts.role)) {
+      console.error(`Error: invalid role "${opts.role}". Must be one of: ${VALID_DISCIPLINES.join(", ")}`);
+      process.exit(1);
+    }
+
     const { Pool } = await import("../pool/pool.js");
     const { DefconClient } = await import("../defcon/client.js");
     const { ClaudeCodeDispatcher } = await import("../dispatcher/claude-code-dispatcher.js");
@@ -36,18 +43,19 @@ program
     console.log(`[norad] Starting ${opts.workers} worker slots — role: ${opts.role}`);
     loop.start();
 
+    let shuttingDown = false;
     const shutdown = async () => {
+      if (shuttingDown) return;
+      shuttingDown = true;
       console.log("[norad] Shutting down gracefully...");
       await loop.stop();
       console.log("[norad] All slots stopped.");
       process.exit(0);
     };
 
-    process.on("SIGINT", shutdown);
-    process.on("SIGTERM", shutdown);
+    process.once("SIGINT", shutdown);
+    process.once("SIGTERM", shutdown);
   });
-
-const VALID_DISCIPLINES = ["engineering", "devops", "qa", "security"] as const;
 
 const worker = program.command("worker").description("Worker management");
 
