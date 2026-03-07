@@ -77,7 +77,7 @@ export class SourceRepo {
 
   update(id: string, input: UpdateSourceInput): SourceRow | undefined {
     const now = Math.floor(Date.now() / 1000);
-    const values: Record<string, unknown> = { updatedAt: now };
+    const values: Partial<typeof sources.$inferInsert> = { updatedAt: now };
     if (input.name !== undefined) values.name = input.name;
     if (input.type !== undefined) values.type = input.type;
     if (input.config !== undefined) values.config = JSON.stringify(input.config);

@@ -14,7 +14,7 @@ export const watches = sqliteTable("watches", {
   id: text("id").primaryKey(),
   sourceId: text("source_id")
     .notNull()
-    .references(() => sources.id),
+    .references(() => sources.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   filter: text("filter").notNull(),
   action: text("action").notNull(),
@@ -28,8 +28,8 @@ export const eventLog = sqliteTable("event_log", {
   id: text("id").primaryKey(),
   sourceId: text("source_id")
     .notNull()
-    .references(() => sources.id),
-  watchId: text("watch_id").references(() => watches.id),
+    .references(() => sources.id, { onDelete: "cascade" }),
+  watchId: text("watch_id").references(() => watches.id, { onDelete: "cascade" }),
   rawEvent: text("raw_event").notNull(),
   actionTaken: text("action_taken"),
   defconResponse: text("defcon_response"),

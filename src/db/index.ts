@@ -4,15 +4,7 @@ import * as schema from "./schema.js";
 
 export type NoradDb = ReturnType<typeof createDb>;
 
-export function createDb(path: string = ":memory:") {
-  const sqlite = new Database(path);
-  sqlite.pragma("journal_mode = WAL");
-  sqlite.pragma("foreign_keys = ON");
-  const db = drizzle(sqlite, { schema });
-  return db;
-}
-
-export function applySchema(path: string = ":memory:") {
+function initSqlite(path: string): InstanceType<typeof Database> {
   const sqlite = new Database(path);
   sqlite.pragma("journal_mode = WAL");
   sqlite.pragma("foreign_keys = ON");
@@ -57,6 +49,15 @@ export function applySchema(path: string = ":memory:") {
       created_at INTEGER NOT NULL
     );
   `);
-  const db = drizzle(sqlite, { schema });
-  return db;
+  return sqlite;
+}
+
+export function applySchema(path: string = ":memory:") {
+  const sqlite = initSqlite(path);
+  return drizzle(sqlite, { schema });
+}
+
+export function createDb(path: string = ":memory:") {
+  const sqlite = initSqlite(path);
+  return drizzle(sqlite, { schema });
 }
