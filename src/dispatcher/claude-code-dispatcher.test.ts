@@ -40,7 +40,7 @@ describe("ClaudeCodeDispatcher", () => {
     expect(mockedSpawn).toHaveBeenCalledWith(
       "claude",
       ["-p", "do stuff", "--model", "sonnet", "--allowedTools", "Edit,Read,Write,Bash,Glob,Grep"],
-      expect.objectContaining({ stdio: ["ignore", "pipe", "pipe"] }),
+      expect.objectContaining({ stdio: ["ignore", "pipe", "inherit"] }),
     );
   });
 

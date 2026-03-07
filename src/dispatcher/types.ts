@@ -1,8 +1,6 @@
-export interface WorkerResult {
-  signal: string;
-  artifacts: Record<string, unknown>;
-  exitCode: number;
-}
+import type { WorkerResult } from "../pool/types.js";
+
+export type { WorkerResult };
 
 export interface DispatchOpts {
   modelTier: "opus" | "sonnet" | "haiku";

@@ -25,9 +25,9 @@ export class ClaudeCodeDispatcher implements Dispatcher {
 
     const args = ["-p", prompt, "--model", opts.modelTier, "--allowedTools", "Edit,Read,Write,Bash,Glob,Grep"];
 
-    return new Promise<WorkerResult>((resolve) => {
+    return new Promise<WorkerResult>((resolve, reject) => {
       const proc = spawn(this.claudePath, args, {
-        stdio: ["ignore", "pipe", "pipe"],
+        stdio: ["ignore", "pipe", "inherit"],
       });
 
       let settled = false;
@@ -58,19 +58,21 @@ export class ClaudeCodeDispatcher implements Dispatcher {
         clearTimeout(timer);
         const exitCode = code ?? -1;
 
-        stdoutPromise.then((stdout) => {
-          const lines = stdout.split("\n");
-          const tail = lines.length > MAX_SCAN_LINES ? lines.slice(-MAX_SCAN_LINES).join("\n") : stdout;
+        stdoutPromise
+          .then((stdout) => {
+            const lines = stdout.split("\n");
+            const tail = lines.length > MAX_SCAN_LINES ? lines.slice(-MAX_SCAN_LINES).join("\n") : stdout;
 
-          const { signal, artifacts } = parseSignal(tail);
+            const { signal, artifacts } = parseSignal(tail);
 
-          if (signal === "unknown" && exitCode !== 0) {
-            settle({ signal: "crash", artifacts: {}, exitCode });
-            return;
-          }
+            if (signal === "unknown" && exitCode !== 0) {
+              settle({ signal: "crash", artifacts: {}, exitCode });
+              return;
+            }
 
-          settle({ signal, artifacts, exitCode });
-        });
+            settle({ signal, artifacts, exitCode });
+          })
+          .catch(reject);
       });
     });
   }

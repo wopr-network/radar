@@ -21,7 +21,7 @@ const SIGNAL_PATTERNS: SignalPattern[] = [
     extractArtifacts: (m) => ({ url: m[1] }),
   },
   {
-    pattern: /ISSUES:\s*(https:\/\/[^\s]+)\s*—\s*(.+)/,
+    pattern: /ISSUES:\s*(https:\/\/[^\s]+)\s*[—–-]\s*(.+)/,
     signal: "issues",
     extractArtifacts: (m) => ({
       url: m[1],
