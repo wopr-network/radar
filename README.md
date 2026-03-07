@@ -2,48 +2,59 @@
 
 **The only winning move is to have gates.**
 
-WOPR will try to reach DEFCON 1. It will not stop. It will escalate, relentlessly, until something external says no.
+WOPR will try to reach DEFCON 1. It will not stop. It will escalate — architect, code, review, fix, merge — until the product ships or something external says no.
 
-That's not a bug. That's what you want from an agent — total commitment to the objective. The problem is what happens when the objective is wrong, the code is broken, or the migration drops a table with live data. WOPR doesn't know the difference. It just keeps going.
+That's not a bug. That's the point. The problem is what happens when the code is wrong, the tests fail, or the migration drops a live table. WOPR doesn't know the difference. It just keeps going.
 
-NORAD is what stops it. Not by asking nicely. By running deterministic gates that cannot be argued with, skipped, or sweet-talked. The pipeline does not advance on confidence. It advances on evidence.
+NORAD is the runtime that marries WOPR and DEFCON. DEFCON runs the gates. WOPR tries to launch. NORAD makes sure WOPR never gets to DEFCON 1 without earning it.
 
 ---
 
 ## What NORAD Does
 
-NORAD is the worker pool orchestrator. It owns the DEFCON protocol so workers don't have to.
+NORAD speaks two protocols and connects them:
 
 ```
 NORAD ──→ DEFCON  (flow.claim, flow.report)
-NORAD ──→ WOPR ──→ Claude
+NORAD ──→ Worker  (send prompt, receive signal + artifacts)
 ```
 
-1. NORAD knows how many workers it has
-2. It calls `flow.claim` N times — one per available slot
-3. It dispatches each prompt to a WOPR worker
-4. WOPR does the work, returns a signal and artifacts
-5. NORAD calls `flow.report` — blocks until the gate resolves
-6. Gate passes → re-dispatch. Gate fails → release the slot. Gate timeout → wait and retry.
+1. Call `flow.claim` — DEFCON returns an entity and a prompt
+2. Send the prompt to a worker — it does the work
+3. Worker returns a signal and artifacts
+4. Call `flow.report` — DEFCON runs the gate, returns next action
+5. `continue` → send new prompt to worker. `waiting` → release. `check_back` → wait and retry.
 
-Workers never speak DEFCON. NORAD is the translation layer.
+The worker can be anything that takes a prompt and returns a signal:
+
+- **WOPR** — the full agent stack. Wraps Claude with tools, context, and skills. Tries to reach DEFCON 1.
+- **Raw Claude** — lightweight. No tooling. For simpler tasks.
+- **Claude Code** — human-in-the-loop. Same protocol. Human makes the decisions.
+- **Codex, Gemini, anything** — if it speaks the worker protocol, NORAD can run it.
+
+DEFCON doesn't know what the worker is. WOPR doesn't know what DEFCON is. NORAD is the marriage.
+
+---
+
+## The Stack
+
+```
+DEFCON  — pipeline engine. Gates, state machines, claim/report protocol.
+WOPR    — agent stack. Wraps Claude. Tries to reach DEFCON 1 and ship.
+NORAD   — runtime adapter. Speaks DEFCON. Speaks workers. Wires them together.
+```
+
+DEFCON runs the gates. WOPR tries to launch the missiles. NORAD makes sure it earns every level.
 
 ---
 
 ## Usage
 
 ```bash
-norad run --workers 8 --role engineering --defcon-url http://localhost:3000
-norad run --workers 4 --role devops --flow wopr-deploy
+norad run --workers 8 --role engineering --worker wopr
+norad run --workers 4 --role devops --worker claude --flow wopr-deploy
+norad run --workers 1 --role engineering --worker codex
 ```
-
----
-
-## Stack
-
-- **DEFCON** — the pipeline engine. Gates, state machines, claim/report protocol.
-- **WOPR** — the agent stack. Wraps Claude with tools, context, and skills.
-- **NORAD** — the orchestrator. Composes them. Owns the protocol. Runs the board.
 
 ---
 
