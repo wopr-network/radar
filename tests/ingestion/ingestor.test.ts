@@ -94,6 +94,38 @@ describe("Ingestor", () => {
     );
   });
 
+  it("handleUpdate: does not forward sentinel entityId to defcon", async () => {
+    const db = createDb();
+    // Simulate a race: sentinel row exists but createEntity hasn't completed yet
+    const repo = new DrizzleEntityMapRepository(db);
+    repo.insertIfAbsent("gh", "pr-42", "__pending__");
+
+    const defcon = makeDefcon();
+    const ingestor = new Ingestor(repo, defcon);
+
+    await ingestor.ingest({ sourceId: "gh", externalId: "pr-42", type: "update", flowName: "wopr-release" });
+
+    expect(defcon.report).not.toHaveBeenCalled();
+  });
+
+  it("handleNew: cleans up sentinel row on createEntity failure so future events can retry", async () => {
+    const db = createDb();
+    const defcon = makeDefcon({
+      createEntity: vi.fn().mockRejectedValueOnce(new Error("defcon unavailable")).mockResolvedValue({ entityId: "entity-abc" }),
+    });
+    const ingestor = new Ingestor(new DrizzleEntityMapRepository(db), defcon);
+
+    // First attempt fails
+    await expect(
+      ingestor.ingest({ sourceId: "gh", externalId: "pr-42", type: "new", flowName: "wopr-release" }),
+    ).rejects.toThrow("defcon unavailable");
+
+    // Second attempt should succeed (sentinel was cleaned up)
+    await ingestor.ingest({ sourceId: "gh", externalId: "pr-42", type: "new", flowName: "wopr-release" });
+
+    expect(defcon.createEntity).toHaveBeenCalledTimes(2);
+  });
+
   it("throws ZodError for invalid event", async () => {
     const db = createDb();
     const defcon = makeDefcon();

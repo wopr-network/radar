@@ -37,10 +37,17 @@ export class Ingestor {
       return;
     }
 
-    const response = await this.defcon.createEntity({
-      flowName: event.flowName,
-      payload: event.payload ?? {},
-    });
+    let response: { entityId: string };
+    try {
+      response = await this.defcon.createEntity({
+        flowName: event.flowName,
+        payload: event.payload ?? {},
+      });
+    } catch (err) {
+      // Clean up the sentinel so future events can retry.
+      this.entityMapRepo.deleteRow(event.sourceId, event.externalId);
+      throw err;
+    }
 
     // Update the sentinel row to the real entityId.
     this.entityMapRepo.updateEntityId(event.sourceId, event.externalId, response.entityId);
@@ -48,7 +55,7 @@ export class Ingestor {
 
   private async handleUpdate(event: IngestEvent): Promise<void> {
     const entityId = this.entityMapRepo.findEntityId(event.sourceId, event.externalId);
-    if (entityId === undefined) {
+    if (entityId === undefined || entityId === "__pending__") {
       return;
     }
 

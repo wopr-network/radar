@@ -7,6 +7,7 @@ export interface IEntityMapRepository {
   /** Returns true if the row was inserted, false if it already existed. */
   insertIfAbsent(sourceId: string, externalId: string, entityId: string): boolean;
   updateEntityId(sourceId: string, externalId: string, entityId: string): void;
+  deleteRow(sourceId: string, externalId: string): void;
 }
 
 export class DrizzleEntityMapRepository implements IEntityMapRepository {
@@ -36,6 +37,13 @@ export class DrizzleEntityMapRepository implements IEntityMapRepository {
     this.db
       .update(entityMap)
       .set({ entityId })
+      .where(and(eq(entityMap.sourceId, sourceId), eq(entityMap.externalId, externalId)))
+      .run();
+  }
+
+  deleteRow(sourceId: string, externalId: string): void {
+    this.db
+      .delete(entityMap)
       .where(and(eq(entityMap.sourceId, sourceId), eq(entityMap.externalId, externalId)))
       .run();
   }
