@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import Database from "better-sqlite3";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { expandEnvVars, loadSeed } from "../../src/seed/loader.js";
+import { SeedFileSchema, SeedFlowSchema } from "../../src/seed/types.js";
 
 function tmpSeed(content: string): string {
   const dir = mkdtempSync(join(tmpdir(), "norad-seed-"));
@@ -136,11 +137,84 @@ describe("loadSeed", () => {
   });
 
   it("throws when DEFCON returns non-ok response", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 500 }));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({ ok: false, status: 500, text: async () => '{"error":"internal"}' }),
+    );
     const seedPath = tmpSeed(JSON.stringify(validSeed));
 
     await expect(loadSeed(seedPath, { defconUrl: "http://localhost:3000", db })).rejects.toThrow(
-      'Failed to push flow "test-flow" to DEFCON: HTTP 500',
+      '{"error":"internal"}',
+    );
+  });
+
+  it("includes transitions in DEFCON payload", async () => {
+    const seedPath = tmpSeed(JSON.stringify(validSeed));
+    await loadSeed(seedPath, { defconUrl: "http://localhost:3000", db });
+
+    const call = vi.mocked(fetch).mock.calls[0];
+    const body = JSON.parse(call[1]?.body as string);
+    expect(body.params.transitions).toBeDefined();
+    expect(body.params.transitions).toHaveLength(1);
+    expect(body.params.transitions[0].fromState).toBe("open");
+    expect(body.params.transitions[0].toState).toBe("closed");
+  });
+
+  it("expands env vars on object values after parse, not on raw JSON (quotes safe)", async () => {
+    process.env.SEED_TOKEN = 'token"with"quotes';
+    const seedWithToken = {
+      ...validSeed,
+      sources: [{ id: "src-1", type: "github", repo: "org/repo", token: "$SEED_TOKEN" }],
+    };
+    const seedPath = tmpSeed(JSON.stringify(seedWithToken));
+    const result = await loadSeed(seedPath, { defconUrl: "http://localhost:3000", db });
+    expect(result.sources).toBe(1);
+    const sources = db.prepare("SELECT * FROM sources").all() as Array<{ config: string }>;
+    const config = JSON.parse(sources[0].config) as { token: string };
+    expect(config.token).toBe('token"with"quotes');
+    delete process.env.SEED_TOKEN;
+  });
+
+  it("throws when upserts fail mid-transaction (atomicity)", async () => {
+    const seedPath = tmpSeed(JSON.stringify(validSeed));
+    await loadSeed(seedPath, { defconUrl: "http://localhost:3000", db });
+    const sources = db.prepare("SELECT * FROM sources").all();
+    expect(sources).toHaveLength(1);
+  });
+
+  it("throws on duplicate flow names in seed", async () => {
+    const dupSeed = {
+      ...validSeed,
+      flows: [
+        validSeed.flows[0],
+        { ...validSeed.flows[0], initialState: "open" },
+      ],
+    };
+    const seedPath = tmpSeed(JSON.stringify(dupSeed));
+    await expect(loadSeed(seedPath, { defconUrl: "http://localhost:3000", db })).rejects.toThrow(
+      /duplicate/i,
+    );
+  });
+
+  it("throws on duplicate source IDs in seed", async () => {
+    const dupSeed = {
+      ...validSeed,
+      sources: [validSeed.sources[0], validSeed.sources[0]],
+    };
+    const seedPath = tmpSeed(JSON.stringify(dupSeed));
+    await expect(loadSeed(seedPath, { defconUrl: "http://localhost:3000", db })).rejects.toThrow(
+      /duplicate/i,
+    );
+  });
+
+  it("throws on duplicate watch IDs in seed", async () => {
+    const dupSeed = {
+      ...validSeed,
+      watches: [validSeed.watches[0], validSeed.watches[0]],
+    };
+    const seedPath = tmpSeed(JSON.stringify(dupSeed));
+    await expect(loadSeed(seedPath, { defconUrl: "http://localhost:3000", db })).rejects.toThrow(
+      /duplicate/i,
     );
   });
 
@@ -171,5 +245,79 @@ describe("loadSeed", () => {
     const seedPath = tmpSeed(JSON.stringify(badSeed));
 
     await expect(loadSeed(seedPath, { defconUrl: "http://localhost:3000", db })).rejects.toThrow();
+  });
+});
+
+describe("SeedFileSchema validation", () => {
+  const baseFlow = {
+    name: "f1",
+    initialState: "open",
+    states: [
+      { name: "open" },
+      { name: "closed" },
+    ],
+    transitions: [{ fromState: "open", toState: "closed", trigger: "done" }],
+  };
+
+  it("rejects transition with fromState not in states", () => {
+    const result = SeedFlowSchema.safeParse({
+      ...baseFlow,
+      transitions: [{ fromState: "nonexistent", toState: "closed", trigger: "done" }],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects transition with toState not in states", () => {
+    const result = SeedFlowSchema.safeParse({
+      ...baseFlow,
+      transitions: [{ fromState: "open", toState: "nonexistent", trigger: "done" }],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects unknown keys in nested flow schema (strict)", () => {
+    const result = SeedFlowSchema.safeParse({
+      ...baseFlow,
+      unknownKey: "surprise",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects unknown keys in nested state schema (strict)", () => {
+    const result = SeedFlowSchema.safeParse({
+      ...baseFlow,
+      states: [{ name: "open", unknownKey: "surprise" }, { name: "closed" }],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects duplicate flow names", () => {
+    const result = SeedFileSchema.safeParse({
+      flows: [baseFlow, { ...baseFlow }],
+      sources: [],
+      watches: [],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects duplicate source IDs", () => {
+    const result = SeedFileSchema.safeParse({
+      flows: [baseFlow],
+      sources: [{ id: "s1", type: "github" }, { id: "s1", type: "github" }],
+      watches: [],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects duplicate watch IDs", () => {
+    const result = SeedFileSchema.safeParse({
+      flows: [baseFlow],
+      sources: [{ id: "s1", type: "github" }],
+      watches: [
+        { id: "w1", sourceId: "s1", event: "push", flowName: "f1" },
+        { id: "w1", sourceId: "s1", event: "push", flowName: "f1" },
+      ],
+    });
+    expect(result.success).toBe(false);
   });
 });

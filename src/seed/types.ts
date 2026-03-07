@@ -16,32 +16,58 @@ export const SeedWatchSchema = z.object({
   filter: z.record(z.string(), z.unknown()).optional(),
 });
 
-export const SeedStateSchema = z.object({
-  name: z.string().min(1),
-  agentRole: z.string().optional(),
-  modelTier: z.string().optional(),
-  mode: z.enum(["passive", "active"]).optional(),
-  promptTemplate: z.string().optional(),
-  constraints: z.record(z.string(), z.unknown()).optional(),
-});
+export const SeedStateSchema = z
+  .object({
+    name: z.string().min(1),
+    agentRole: z.string().optional(),
+    modelTier: z.string().optional(),
+    mode: z.enum(["passive", "active"]).optional(),
+    promptTemplate: z.string().optional(),
+    constraints: z.record(z.string(), z.unknown()).optional(),
+  })
+  .strict();
 
-export const SeedTransitionSchema = z.object({
-  fromState: z.string().min(1),
-  toState: z.string().min(1),
-  trigger: z.string().min(1),
-  condition: z.string().optional(),
-  priority: z.number().int().min(0).optional(),
-});
+export const SeedTransitionSchema = z
+  .object({
+    fromState: z.string().min(1),
+    toState: z.string().min(1),
+    trigger: z.string().min(1),
+    condition: z.string().optional(),
+    priority: z.number().int().min(0).optional(),
+  })
+  .strict();
 
-export const SeedFlowSchema = z.object({
-  name: z.string().min(1),
-  initialState: z.string().min(1),
-  description: z.string().optional(),
-  maxConcurrent: z.number().int().min(0).optional(),
-  maxConcurrentPerRepo: z.number().int().min(0).optional(),
-  states: z.array(SeedStateSchema).min(1),
-  transitions: z.array(SeedTransitionSchema).min(1),
-});
+export const SeedFlowSchema = z
+  .object({
+    name: z.string().min(1),
+    initialState: z.string().min(1),
+    description: z.string().optional(),
+    maxConcurrent: z.number().int().min(0).optional(),
+    maxConcurrentPerRepo: z.number().int().min(0).optional(),
+    states: z.array(SeedStateSchema).min(1),
+    transitions: z.array(SeedTransitionSchema).min(1),
+  })
+  .strict()
+  .superRefine((flow, ctx) => {
+    const stateNames = new Set(flow.states.map((s) => s.name));
+    for (let i = 0; i < flow.transitions.length; i++) {
+      const t = flow.transitions[i];
+      if (!stateNames.has(t.fromState)) {
+        ctx.addIssue({
+          code: "custom",
+          message: `Transition #${i} has fromState "${t.fromState}" not in states`,
+          path: ["transitions", i, "fromState"],
+        });
+      }
+      if (!stateNames.has(t.toState)) {
+        ctx.addIssue({
+          code: "custom",
+          message: `Transition #${i} has toState "${t.toState}" not in states`,
+          path: ["transitions", i, "toState"],
+        });
+      }
+    }
+  });
 
 export const SeedFileSchema = z
   .object({
@@ -51,6 +77,48 @@ export const SeedFileSchema = z
   })
   .strict()
   .superRefine((seed, ctx) => {
+    // duplicate flow names
+    const flowNamesSeen = new Set<string>();
+    for (let i = 0; i < seed.flows.length; i++) {
+      const name = seed.flows[i].name;
+      if (flowNamesSeen.has(name)) {
+        ctx.addIssue({
+          code: "custom",
+          message: `Duplicate flow name "${name}"`,
+          path: ["flows", i, "name"],
+        });
+      }
+      flowNamesSeen.add(name);
+    }
+
+    // duplicate source IDs
+    const sourceIdsSeen = new Set<string>();
+    for (let i = 0; i < seed.sources.length; i++) {
+      const id = seed.sources[i].id;
+      if (sourceIdsSeen.has(id)) {
+        ctx.addIssue({
+          code: "custom",
+          message: `Duplicate source id "${id}"`,
+          path: ["sources", i, "id"],
+        });
+      }
+      sourceIdsSeen.add(id);
+    }
+
+    // duplicate watch IDs
+    const watchIdsSeen = new Set<string>();
+    for (let i = 0; i < seed.watches.length; i++) {
+      const id = seed.watches[i].id;
+      if (watchIdsSeen.has(id)) {
+        ctx.addIssue({
+          code: "custom",
+          message: `Duplicate watch id "${id}"`,
+          path: ["watches", i, "id"],
+        });
+      }
+      watchIdsSeen.add(id);
+    }
+
     const sourceIds = new Set(seed.sources.map((s) => s.id));
     for (let i = 0; i < seed.watches.length; i++) {
       const w = seed.watches[i];

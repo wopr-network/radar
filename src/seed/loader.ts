@@ -53,11 +53,27 @@ function ensureTables(db: Database.Database): void {
   `);
 }
 
+function expandEnvVarsInValue(value: unknown): unknown {
+  if (typeof value === "string") {
+    return expandEnvVars(value);
+  }
+  if (Array.isArray(value)) {
+    return value.map(expandEnvVarsInValue);
+  }
+  if (value !== null && typeof value === "object") {
+    const result: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      result[k] = expandEnvVarsInValue(v);
+    }
+    return result;
+  }
+  return value;
+}
+
 export async function loadSeed(seedPath: string, deps: LoadSeedDeps): Promise<LoadSeedResult> {
   const absPath = resolve(seedPath);
   const raw = readFileSync(absPath, "utf-8");
-  const expanded = expandEnvVars(raw);
-  const json: unknown = JSON.parse(expanded);
+  const json: unknown = expandEnvVarsInValue(JSON.parse(raw));
   const seed = SeedFileSchema.parse(json);
 
   ensureTables(deps.db);
@@ -82,32 +98,42 @@ export async function loadSeed(seedPath: string, deps: LoadSeedDeps): Promise<Lo
             promptTemplate: s.promptTemplate,
             constraints: s.constraints,
           })),
+          transitions: flow.transitions.map((t) => ({
+            fromState: t.fromState,
+            toState: t.toState,
+            trigger: t.trigger,
+            condition: t.condition,
+            priority: t.priority,
+          })),
         },
       }),
     });
     if (!res.ok) {
-      throw new Error(`Failed to push flow "${flow.name}" to DEFCON: HTTP ${res.status}`);
+      const body = await res.text();
+      throw new Error(`Failed to push flow "${flow.name}" to DEFCON: HTTP ${res.status}: ${body}`);
     }
   }
 
   const upsertSource = deps.db.prepare("INSERT OR REPLACE INTO sources (id, type, config) VALUES (?, ?, ?)");
-  for (const source of seed.sources) {
-    const { id, type, ...rest } = source;
-    upsertSource.run(id, type, JSON.stringify(rest));
-  }
-
   const upsertWatch = deps.db.prepare(
     "INSERT OR REPLACE INTO watches (id, source_id, event, flow_name, filter) VALUES (?, ?, ?, ?, ?)",
   );
-  for (const watch of seed.watches) {
-    upsertWatch.run(
-      watch.id,
-      watch.sourceId,
-      watch.event,
-      watch.flowName,
-      watch.filter ? JSON.stringify(watch.filter) : null,
-    );
-  }
+
+  deps.db.transaction(() => {
+    for (const source of seed.sources) {
+      const { id, type, ...rest } = source;
+      upsertSource.run(id, type, JSON.stringify(rest));
+    }
+    for (const watch of seed.watches) {
+      upsertWatch.run(
+        watch.id,
+        watch.sourceId,
+        watch.event,
+        watch.flowName,
+        watch.filter ? JSON.stringify(watch.filter) : null,
+      );
+    }
+  })();
 
   return {
     flows: seed.flows.length,
