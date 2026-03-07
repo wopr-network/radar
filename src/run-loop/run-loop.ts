@@ -67,6 +67,12 @@ export class RunLoop {
     await Promise.race([allSettled, forceTimeout]);
     clearTimeout(forceTimeoutHandle);
 
+    // Ensure all slot coroutines have fully settled before nulling abortController.
+    // Without this, a force-timeout win leaves old coroutines still running; a new
+    // start() would spawn coroutines with the same slot IDs and race to pool.allocate,
+    // throwing "Slot already allocated" and silently losing claimed tasks.
+    await allSettled;
+
     this.slotPromises.clear();
     this.abortController = null;
   }
@@ -148,15 +154,12 @@ export class RunLoop {
     const slot = pool.allocate(slotId, workerId, claim.entityId, claim.prompt, claimFlow, claimRepo);
     if (!slot) {
       try {
-        await defcon.report(
-          {
-            workerId,
-            entityId: claim.entityId,
-            signal: "crash",
-            artifacts: { error: "slot unavailable" },
-          },
-          { signal: this.signal },
-        );
+        await defcon.report({
+          workerId,
+          entityId: claim.entityId,
+          signal: "crash",
+          artifacts: { error: "slot unavailable" },
+        });
       } catch {}
       await sleep(this.pollIntervalMs, this.signal);
       return;
@@ -188,15 +191,12 @@ export class RunLoop {
         pool.setState(slotId, "reporting");
         let response: ReportResponse;
         try {
-          response = await defcon.report(
-            {
-              workerId,
-              entityId: claim.entityId,
-              signal: currentSignal,
-              artifacts: currentArtifacts,
-            },
-            { signal: this.signal },
-          );
+          response = await defcon.report({
+            workerId,
+            entityId: claim.entityId,
+            signal: currentSignal,
+            artifacts: currentArtifacts,
+          });
         } catch (err) {
           if (!this.signal.aborted) {
             console.error(`[norad] slot ${slotId} report error:`, (err as Error).message);
