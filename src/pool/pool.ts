@@ -9,6 +9,7 @@ export class Pool {
   }
 
   allocate(slotId: string, workerId: string, entityId: string, prompt: string): Slot {
+    if (this.slots.has(slotId)) throw new Error(`Slot already allocated: ${slotId}`);
     const slot: Slot = {
       slotId,
       workerId,
@@ -29,6 +30,7 @@ export class Pool {
   }
 
   release(slotId: string): void {
+    if (!this.slots.has(slotId)) throw new Error(`Unknown slot: ${slotId}`);
     this.slots.delete(slotId);
   }
 
