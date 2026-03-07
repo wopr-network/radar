@@ -8,7 +8,8 @@ export class Pool {
     this.capacity = capacity;
   }
 
-  allocate(slotId: string, workerId: string, entityId: string, prompt: string): Slot {
+  allocate(slotId: string, workerId: string, entityId: string, prompt: string): Slot | null {
+    if (this.slots.size >= this.capacity) return null;
     if (this.slots.has(slotId)) throw new Error(`Slot already allocated: ${slotId}`);
     const slot: Slot = {
       slotId,
@@ -41,7 +42,7 @@ export class Pool {
   }
 
   availableSlots(): number {
-    return this.capacity - this.slots.size;
+    return Math.max(0, this.capacity - this.slots.size);
   }
 
   activeSlots(): Slot[] {

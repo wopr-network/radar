@@ -21,6 +21,13 @@ describe("Pool", () => {
       expect(pool.availableSlots()).toBe(0);
     });
 
+    it("never returns negative even if somehow over-allocated", () => {
+      const pool = new Pool(1);
+      pool.allocate("slot-1", "wkr-1", "feat-1", "prompt");
+      // After capacity fix, next allocate returns null, so availableSlots stays >= 0
+      expect(pool.availableSlots()).toBeGreaterThanOrEqual(0);
+    });
+
     it("increments when a slot is released", () => {
       const pool = new Pool(2);
       pool.allocate("slot-1", "wkr-1", "feat-1", "prompt");
@@ -45,6 +52,21 @@ describe("Pool", () => {
       const pool = new Pool(5);
       pool.allocate("slot-1", "wkr-1", "feat-1", "prompt");
       expect(() => pool.allocate("slot-1", "wkr-2", "feat-2", "prompt")).toThrow();
+    });
+
+    it("returns null when at capacity", () => {
+      const pool = new Pool(2);
+      pool.allocate("slot-1", "wkr-1", "feat-1", "prompt");
+      pool.allocate("slot-2", "wkr-2", "feat-2", "prompt");
+      const result = pool.allocate("slot-3", "wkr-3", "feat-3", "prompt");
+      expect(result).toBeNull();
+    });
+
+    it("allocating up to capacity succeeds", () => {
+      const pool = new Pool(3);
+      expect(pool.allocate("slot-1", "wkr-1", "feat-1", "prompt")).not.toBeNull();
+      expect(pool.allocate("slot-2", "wkr-2", "feat-2", "prompt")).not.toBeNull();
+      expect(pool.allocate("slot-3", "wkr-3", "feat-3", "prompt")).not.toBeNull();
     });
   });
 
