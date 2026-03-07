@@ -59,19 +59,24 @@ export class RunLoop {
 
     const timeout = this.config.stopTimeoutMs ?? 5000;
     const allSettled = Promise.allSettled(this.slotPromises.values());
+    let timedOut = false;
     let forceTimeoutHandle: ReturnType<typeof setTimeout> | undefined;
     const forceTimeout = new Promise<void>((resolve) => {
-      forceTimeoutHandle = setTimeout(resolve, timeout);
+      forceTimeoutHandle = setTimeout(() => {
+        timedOut = true;
+        resolve();
+      }, timeout);
     });
 
     await Promise.race([allSettled, forceTimeout]);
     clearTimeout(forceTimeoutHandle);
 
-    // Ensure all slot coroutines have fully settled before nulling abortController.
-    // Without this, a force-timeout win leaves old coroutines still running; a new
-    // start() would spawn coroutines with the same slot IDs and race to pool.allocate,
-    // throwing "Slot already allocated" and silently losing claimed tasks.
-    await allSettled;
+    if (!timedOut) {
+      // Natural completion — all slots settled cleanly.
+      await allSettled;
+    }
+    // Force-timeout path: slots are still running but aborted; null controller now
+    // so this.signal getter returns a pre-aborted signal for any in-flight code.
 
     this.slotPromises.clear();
     this.abortController = null;
