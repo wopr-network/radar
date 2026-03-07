@@ -3,6 +3,7 @@ export type SlotState = "idle" | "claimed" | "working" | "reporting";
 export interface WorkerResult {
   signal: string;
   artifacts: Record<string, unknown>;
+  exitCode: number;
 }
 
 export interface Slot {
