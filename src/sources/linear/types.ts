@@ -26,3 +26,17 @@ export interface BlockingCheckResult {
   unblocked: boolean;
   blockers: LinearRelatedIssue[];
 }
+
+export interface LinearSearchIssue {
+  id: string;
+  identifier: string;
+  title: string;
+  description: string | null;
+  state: LinearIssueState;
+  labels: Array<{ name: string }>;
+}
+
+export interface LinearWatchFilter {
+  state?: string;
+  labels?: string[];
+}

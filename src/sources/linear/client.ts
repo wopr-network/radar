@@ -1,6 +1,21 @@
-import type { LinearIssue, LinearRelation } from "./types.js";
+import type { LinearIssue, LinearIssueState, LinearRelation, LinearSearchIssue } from "./types.js";
 
 const LINEAR_API_URL = "https://api.linear.app/graphql";
+
+const SEARCH_ISSUES_QUERY = `
+  query SearchIssues($stateName: String!, $first: Int) {
+    issues(filter: { state: { name: { eq: $stateName } } }, first: $first) {
+      nodes {
+        id
+        identifier
+        title
+        description
+        state { type name }
+        labels { nodes { name } }
+      }
+    }
+  }
+`;
 
 const ISSUE_WITH_RELATIONS_QUERY = `
   query IssueWithRelations($id: String!) {
@@ -35,6 +50,22 @@ const ISSUE_WITH_RELATIONS_QUERY = `
 
 export interface LinearClientConfig {
   apiKey: string;
+}
+
+interface SearchIssuesResponse {
+  data?: {
+    issues: {
+      nodes: Array<{
+        id: string;
+        identifier: string;
+        title: string;
+        description: string | null;
+        state: { type: string; name: string };
+        labels: { nodes: Array<{ name: string }> };
+      }>;
+    };
+  };
+  errors?: Array<{ message: string }>;
 }
 
 interface GraphQLResponse {
@@ -74,6 +105,43 @@ export class LinearClient {
 
   constructor(config: LinearClientConfig) {
     this.apiKey = config.apiKey;
+  }
+
+  async searchIssues(filter: { stateName: string; first?: number }): Promise<LinearSearchIssue[]> {
+    const res = await fetch(LINEAR_API_URL, {
+      method: "POST",
+      headers: {
+        Authorization: this.apiKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        query: SEARCH_ISSUES_QUERY,
+        variables: { stateName: filter.stateName, first: filter.first ?? 50 },
+      }),
+    });
+
+    if (!res.ok) {
+      throw new Error(`Linear API error: ${res.status}`);
+    }
+
+    const json = (await res.json()) as SearchIssuesResponse;
+
+    if (json.errors?.length) {
+      throw new Error(json.errors[0].message);
+    }
+
+    if (!json.data) {
+      throw new Error("Linear API returned no data");
+    }
+
+    return json.data.issues.nodes.map((n) => ({
+      id: n.id,
+      identifier: n.identifier,
+      title: n.title,
+      description: n.description,
+      state: n.state as LinearIssueState,
+      labels: n.labels.nodes,
+    }));
   }
 
   async getIssueWithRelations(issueId: string): Promise<LinearIssue> {
