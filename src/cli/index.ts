@@ -57,9 +57,10 @@ export function buildProgram(): Command {
         } catch (err) {
           console.error(`[norad] Seed failed: ${(err as Error).message}`);
           process.exit(1);
-        } finally {
-          db.close();
         }
+        // db intentionally kept open for the process lifetime — sources/watches
+        // are stored here and read by the API server (sourceRepo/watchRepo).
+        process.once("exit", () => db.close());
       }
 
       const { Pool } = await import("../pool/pool.js");
@@ -156,5 +157,5 @@ export function buildProgram(): Command {
 
 // Only auto-parse when run as the entry point, not when imported in tests.
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  buildProgram().parse();
+  await buildProgram().parseAsync();
 }
