@@ -14,3 +14,5 @@ export type { LoadSeedDeps, LoadSeedResult, SeedFile, SeedFlow, SeedSource, Seed
 export { expandEnvVars, loadSeed } from "./seed/index.js";
 export { InMemoryWorkerRepo } from "./worker/index.js";
 export type { Worker, WorkerStatus } from "./worker/types.js";
+export { GitHubSourceAdapter, validateBranchName, validateWorktreePath } from "./sources/index.js";
+export type { GitHubSourceAdapterConfig } from "./sources/index.js";
