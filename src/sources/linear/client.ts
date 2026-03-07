@@ -1,6 +1,44 @@
-import type { LinearIssue, LinearRelation } from "./types.js";
+import type { LinearIssue, LinearIssueState, LinearRelation, LinearSearchIssue } from "./types.js";
 
 const LINEAR_API_URL = "https://api.linear.app/graphql";
+
+const SEARCH_ISSUES_QUERY = `
+  query SearchIssues($stateName: String!, $first: Int, $after: String) {
+    issues(filter: { state: { name: { eq: $stateName } } }, first: $first, after: $after) {
+      nodes {
+        id
+        identifier
+        title
+        description
+        state { type name }
+        labels { nodes { name } }
+      }
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+    }
+  }
+`;
+
+const SEARCH_ALL_ISSUES_QUERY = `
+  query SearchAllIssues($first: Int, $after: String) {
+    issues(first: $first, after: $after) {
+      nodes {
+        id
+        identifier
+        title
+        description
+        state { type name }
+        labels { nodes { name } }
+      }
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+    }
+  }
+`;
 
 const ISSUE_WITH_RELATIONS_QUERY = `
   query IssueWithRelations($id: String!) {
@@ -35,6 +73,26 @@ const ISSUE_WITH_RELATIONS_QUERY = `
 
 export interface LinearClientConfig {
   apiKey: string;
+}
+
+interface SearchIssuesResponse {
+  data?: {
+    issues: {
+      nodes: Array<{
+        id: string;
+        identifier: string;
+        title: string;
+        description: string | null;
+        state: { type: string; name: string };
+        labels: { nodes: Array<{ name: string }> };
+      }>;
+      pageInfo: {
+        hasNextPage: boolean;
+        endCursor: string | null;
+      };
+    };
+  };
+  errors?: Array<{ message: string }>;
 }
 
 interface GraphQLResponse {
@@ -74,6 +132,62 @@ export class LinearClient {
 
   constructor(config: LinearClientConfig) {
     this.apiKey = config.apiKey;
+  }
+
+  async searchIssues(filter: { stateName?: string; first?: number }): Promise<LinearSearchIssue[]> {
+    const pageSize = filter.first ?? 50;
+    const allIssues: LinearSearchIssue[] = [];
+    let cursor: string | null = null;
+
+    do {
+      const res = await fetch(LINEAR_API_URL, {
+        method: "POST",
+        headers: {
+          Authorization: this.apiKey,
+          "Content-Type": "application/json",
+        },
+        body:
+          filter.stateName !== undefined
+            ? JSON.stringify({
+                query: SEARCH_ISSUES_QUERY,
+                variables: { stateName: filter.stateName, first: pageSize, after: cursor ?? undefined },
+              })
+            : JSON.stringify({
+                query: SEARCH_ALL_ISSUES_QUERY,
+                variables: { first: pageSize, after: cursor ?? undefined },
+              }),
+      });
+
+      if (!res.ok) {
+        throw new Error(`Linear API error: ${res.status}`);
+      }
+
+      const json = (await res.json()) as SearchIssuesResponse;
+
+      if (json.errors?.length) {
+        throw new Error(json.errors[0].message);
+      }
+
+      if (!json.data) {
+        throw new Error("Linear API returned no data");
+      }
+
+      const page = json.data.issues;
+      for (const n of page.nodes) {
+        allIssues.push({
+          id: n.id,
+          identifier: n.identifier,
+          title: n.title,
+          description: n.description,
+          state: n.state as LinearIssueState,
+          labels: n.labels.nodes,
+        });
+      }
+
+      cursor = page.pageInfo.hasNextPage ? (page.pageInfo.endCursor ?? null) : null;
+    } while (cursor !== null);
+
+    return allIssues;
   }
 
   async getIssueWithRelations(issueId: string): Promise<LinearIssue> {
