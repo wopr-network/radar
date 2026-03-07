@@ -26,7 +26,10 @@ describe("LinearClient.searchIssues", () => {
     ];
 
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response(JSON.stringify({ data: { issues: { nodes: mockIssues } } }), { status: 200 }),
+      new Response(
+        JSON.stringify({ data: { issues: { nodes: mockIssues, pageInfo: { hasNextPage: false, endCursor: null } } } }),
+        { status: 200 },
+      ),
     );
 
     const result = await client.searchIssues({ stateName: "Todo" });

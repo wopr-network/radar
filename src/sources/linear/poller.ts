@@ -23,6 +23,9 @@ export class LinearPoller {
   private watches: LinearWatchConfig[];
   private intervalMs: number;
   private timer: ReturnType<typeof setInterval> | null = null;
+  // In-flight guard: prevents concurrent poll runs from overlapping if a poll
+  // takes longer than the interval.
+  private isPolling = false;
 
   constructor(config: LinearPollerConfig) {
     this.linearClient = config.linearClient;
@@ -34,6 +37,7 @@ export class LinearPoller {
   start(): void {
     if (this.timer) return;
     this.timer = setInterval(() => {
+      if (this.isPolling) return;
       this.pollOnce().catch((err) => {
         console.error("[LinearPoller] poll error:", err);
       });
@@ -48,7 +52,21 @@ export class LinearPoller {
   }
 
   async pollOnce(): Promise<void> {
+    if (this.isPolling) return;
+    this.isPolling = true;
+    try {
+      await this._doPoll();
+    } finally {
+      this.isPolling = false;
+    }
+  }
+
+  private async _doPoll(): Promise<void> {
     const byState = new Map<string, LinearWatchConfig[]>();
+    // Note: poll mode defaults to "Todo" when no state filter is set, because polling
+    // fetches all open issues and would otherwise return too broad a result set.
+    // Webhook mode has no such default — it receives all change events and filters
+    // them individually. This intentional asymmetry avoids unnecessary API load.
     for (const watch of this.watches) {
       const state = watch.filter.state ?? "Todo";
       const existing = byState.get(state) ?? [];

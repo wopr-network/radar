@@ -3,8 +3,8 @@ import type { LinearIssue, LinearIssueState, LinearRelation, LinearSearchIssue }
 const LINEAR_API_URL = "https://api.linear.app/graphql";
 
 const SEARCH_ISSUES_QUERY = `
-  query SearchIssues($stateName: String!, $first: Int) {
-    issues(filter: { state: { name: { eq: $stateName } } }, first: $first) {
+  query SearchIssues($stateName: String!, $first: Int, $after: String) {
+    issues(filter: { state: { name: { eq: $stateName } } }, first: $first, after: $after) {
       nodes {
         id
         identifier
@@ -12,6 +12,10 @@ const SEARCH_ISSUES_QUERY = `
         description
         state { type name }
         labels { nodes { name } }
+      }
+      pageInfo {
+        hasNextPage
+        endCursor
       }
     }
   }
@@ -63,6 +67,10 @@ interface SearchIssuesResponse {
         state: { type: string; name: string };
         labels: { nodes: Array<{ name: string }> };
       }>;
+      pageInfo: {
+        hasNextPage: boolean;
+        endCursor: string | null;
+      };
     };
   };
   errors?: Array<{ message: string }>;
@@ -108,40 +116,53 @@ export class LinearClient {
   }
 
   async searchIssues(filter: { stateName: string; first?: number }): Promise<LinearSearchIssue[]> {
-    const res = await fetch(LINEAR_API_URL, {
-      method: "POST",
-      headers: {
-        Authorization: this.apiKey,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        query: SEARCH_ISSUES_QUERY,
-        variables: { stateName: filter.stateName, first: filter.first ?? 50 },
-      }),
-    });
+    const pageSize = filter.first ?? 50;
+    const allIssues: LinearSearchIssue[] = [];
+    let cursor: string | null = null;
 
-    if (!res.ok) {
-      throw new Error(`Linear API error: ${res.status}`);
-    }
+    do {
+      const res = await fetch(LINEAR_API_URL, {
+        method: "POST",
+        headers: {
+          Authorization: this.apiKey,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          query: SEARCH_ISSUES_QUERY,
+          variables: { stateName: filter.stateName, first: pageSize, after: cursor ?? undefined },
+        }),
+      });
 
-    const json = (await res.json()) as SearchIssuesResponse;
+      if (!res.ok) {
+        throw new Error(`Linear API error: ${res.status}`);
+      }
 
-    if (json.errors?.length) {
-      throw new Error(json.errors[0].message);
-    }
+      const json = (await res.json()) as SearchIssuesResponse;
 
-    if (!json.data) {
-      throw new Error("Linear API returned no data");
-    }
+      if (json.errors?.length) {
+        throw new Error(json.errors[0].message);
+      }
 
-    return json.data.issues.nodes.map((n) => ({
-      id: n.id,
-      identifier: n.identifier,
-      title: n.title,
-      description: n.description,
-      state: n.state as LinearIssueState,
-      labels: n.labels.nodes,
-    }));
+      if (!json.data) {
+        throw new Error("Linear API returned no data");
+      }
+
+      const page = json.data.issues;
+      for (const n of page.nodes) {
+        allIssues.push({
+          id: n.id,
+          identifier: n.identifier,
+          title: n.title,
+          description: n.description,
+          state: n.state as LinearIssueState,
+          labels: n.labels.nodes,
+        });
+      }
+
+      cursor = page.pageInfo.hasNextPage ? (page.pageInfo.endCursor ?? null) : null;
+    } while (cursor !== null);
+
+    return allIssues;
   }
 
   async getIssueWithRelations(issueId: string): Promise<LinearIssue> {
