@@ -22,7 +22,7 @@ const ISSUE_WITH_RELATIONS_QUERY = `
       inverseRelations {
         nodes {
           type
-          relatedIssue {
+          issue {
             identifier
             title
             state { type name }
@@ -57,7 +57,7 @@ interface GraphQLResponse {
       inverseRelations: {
         nodes: Array<{
           type: string;
-          relatedIssue: {
+          issue: {
             identifier: string;
             title: string;
             state: { type: string; name: string };
@@ -122,9 +122,9 @@ export class LinearClient {
       .map((n) => ({
         type: "blocked_by" as LinearRelation["type"],
         relatedIssue: {
-          identifier: n.relatedIssue.identifier,
-          title: n.relatedIssue.title,
-          state: n.relatedIssue.state as LinearIssue["state"],
+          identifier: n.issue.identifier,
+          title: n.issue.title,
+          state: n.issue.state as LinearIssue["state"],
         },
       }));
 
