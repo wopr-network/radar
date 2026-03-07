@@ -39,4 +39,5 @@ export interface LinearSearchIssue {
 export interface LinearWatchFilter {
   state?: string;
   labels?: string[];
+  teamIds?: string[];
 }
