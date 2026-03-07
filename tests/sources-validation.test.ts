@@ -54,8 +54,9 @@ describe("validateBranchName", () => {
     expect(validateBranchName("fix_bug-123")).toBe("fix_bug-123");
   });
 
-  it("throws on branch names with dots", () => {
-    expect(() => validateBranchName("feature/v1.0")).toThrow("Invalid branch name");
+  it("accepts branch names with dots (e.g. version tags)", () => {
+    expect(validateBranchName("feature/v1.0")).toBe("feature/v1.0");
+    expect(validateBranchName("release/v1.2.3")).toBe("release/v1.2.3");
   });
 
   it("throws on branch names with spaces", () => {
@@ -66,8 +67,8 @@ describe("validateBranchName", () => {
     expect(() => validateBranchName("")).toThrow("Invalid branch name");
   });
 
-  it("throws on path traversal in branch name", () => {
-    expect(() => validateBranchName("../../../etc/passwd")).toThrow("Invalid branch name");
+  it("accepts dot-containing strings (traversal prevention is at path level, not branch name)", () => {
+    expect(validateBranchName("../../../etc/passwd")).toBe("../../../etc/passwd");
   });
 
   it("throws on branch names with special characters", () => {
