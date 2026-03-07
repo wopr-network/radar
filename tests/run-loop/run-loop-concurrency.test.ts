@@ -100,7 +100,7 @@ describe("RunLoop concurrency enforcement", () => {
         invocationId: "inv3",
         flow: "wopr-changeset",
         stage: "spec",
-        prompt: "Repo: wopr-network/wopr\nDo something",
+        prompt: "**Repo:** wopr-network/wopr\nDo something",
       })),
       report: vi.fn(async () => {
         reportCallCount++;

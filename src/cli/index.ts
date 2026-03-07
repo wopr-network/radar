@@ -24,6 +24,19 @@ program
       process.exit(1);
     }
 
+    if (opts.maxConcurrent != null && (Number.isNaN(opts.maxConcurrent) || opts.maxConcurrent < 1)) {
+      console.error(`Invalid --max-concurrent: ${opts.maxConcurrent}`);
+      process.exit(1);
+    }
+
+    if (
+      opts.maxConcurrentPerRepo != null &&
+      (Number.isNaN(opts.maxConcurrentPerRepo) || opts.maxConcurrentPerRepo < 1)
+    ) {
+      console.error(`Invalid --max-concurrent-per-repo: ${opts.maxConcurrentPerRepo}`);
+      process.exit(1);
+    }
+
     const { Pool } = await import("../pool/pool.js");
     const { DefconClient } = await import("../defcon/client.js");
     const { ClaudeCodeDispatcher } = await import("../dispatcher/claude-code-dispatcher.js");

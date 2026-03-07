@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { ClaimResponse, ReportResponse } from "../defcon/types.js";
+import { extractRepoFromDescription } from "../sources/linear/repo-extractor.js";
 import type { RunLoopConfig } from "./types.js";
 
 const DEFAULT_POLL_INTERVAL_MS = 5000;
@@ -78,11 +79,6 @@ export class RunLoop {
     }
   }
 
-  private extractRepoFromPrompt(prompt: string): string | null {
-    const match = prompt.match(/\b([a-zA-Z0-9_-]+\/[a-zA-Z0-9_.-]+)\b/);
-    return match?.[1] ?? null;
-  }
-
   private async claimAndProcess(slotId: string, workerId: string): Promise<void> {
     const { defcon, dispatcher, pool, role, flow } = this.config;
 
@@ -111,7 +107,7 @@ export class RunLoop {
     }
 
     const claimFlow = claim.flow;
-    const claimRepo = this.extractRepoFromPrompt(claim.prompt);
+    const claimRepo = extractRepoFromDescription(claim.prompt);
 
     // Concurrency gate: per-repo limit — checked BEFORE allocating a slot
     // so we skip rather than crash the entity
