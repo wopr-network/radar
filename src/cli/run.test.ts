@@ -134,11 +134,21 @@ describe("port validation", () => {
   });
 
   it("rejects port > 65535 (Commander range check)", async () => {
+    const exitSpy = vi.spyOn(process, "exit").mockImplementation((() => {
+      throw new Error("process.exit called");
+    }) as () => never);
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
     const program = buildProgram();
     program.exitOverride();
-    await expect(
-      program.parseAsync(["node", "norad", "run", "-w", "1", "-r", "engineering", "--port", "99999"]),
-    ).rejects.toThrow();
+    try {
+      await expect(
+        program.parseAsync(["node", "norad", "run", "-w", "1", "-r", "engineering", "--port", "99999"]),
+      ).rejects.toThrow();
+    } finally {
+      exitSpy.mockRestore();
+      errorSpy.mockRestore();
+    }
   });
 });
 
