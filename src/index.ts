@@ -1,4 +1,6 @@
 export { createServer } from "./api/server.js";
+export { ClaimHandler } from "./claim/index.js";
+export type { ExternalClaimRequest, ExternalClaimResponse } from "./claim/types.js";
 export type { NoradDb } from "./db/index.js";
 export { applySchema, createDb } from "./db/index.js";
 export { EventLogRepo } from "./db/repos/event-log-repo.js";
@@ -10,3 +12,5 @@ export { Pool } from "./pool/index.js";
 export type { SlotState, WorkerResult } from "./pool/types.js";
 export type { LoadSeedDeps, LoadSeedResult, SeedFile, SeedFlow, SeedSource, SeedWatch } from "./seed/index.js";
 export { expandEnvVars, loadSeed } from "./seed/index.js";
+export { InMemoryWorkerRepo } from "./worker/index.js";
+export type { Worker, WorkerStatus } from "./worker/types.js";
