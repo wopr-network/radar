@@ -5,11 +5,17 @@ export class Router {
 
   add(method: string, path: string, handler: RouteHandler): void {
     const paramNames: string[] = [];
-    const patternStr = path.replace(/:(\w+)/g, (_match, name: string) => {
-      paramNames.push(name);
-      return "([^/]+)";
-    });
-    const pattern = new RegExp(`^${patternStr}$`);
+    const builtPattern = path
+      .split(/(:\w+)/g)
+      .map((part) => {
+        if (part.startsWith(":")) {
+          paramNames.push(part.slice(1));
+          return "([^/]+)";
+        }
+        return part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      })
+      .join("");
+    const pattern = new RegExp(`^${builtPattern}$`);
     this.routes.push({ method: method.toUpperCase(), pattern, paramNames, handler });
   }
 

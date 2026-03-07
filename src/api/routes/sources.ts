@@ -8,6 +8,9 @@ export function registerSourceRoutes(router: Router, repo: SourceRepo): void {
   });
 
   router.add("POST", "/api/sources", async (ctx) => {
+    if (ctx.body === null || typeof ctx.body !== "object") {
+      return { status: 400, body: { error: "Request body must be a JSON object" } };
+    }
     const data = ctx.body as Partial<Source>;
     if (!data.name || !data.type) {
       return { status: 400, body: { error: "name and type are required" } };

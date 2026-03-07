@@ -8,6 +8,9 @@ export function registerWorkerRoutes(router: Router, repo: WorkerRepo): void {
   });
 
   router.add("POST", "/api/workers", async (ctx) => {
+    if (ctx.body === null || typeof ctx.body !== "object") {
+      return { status: 400, body: { error: "Request body must be a JSON object" } };
+    }
     const data = ctx.body as Partial<Worker>;
     if (!data.name || !data.type || !data.discipline) {
       return { status: 400, body: { error: "name, type, and discipline are required" } };

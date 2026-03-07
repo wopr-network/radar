@@ -8,6 +8,9 @@ export function registerWatchRoutes(router: Router, watchRepo: WatchRepo): void 
   });
 
   router.add("POST", "/api/sources/:id/watches", async (ctx) => {
+    if (ctx.body === null || typeof ctx.body !== "object") {
+      return { status: 400, body: { error: "Request body must be a JSON object" } };
+    }
     const data = ctx.body as Partial<Watch>;
     if (!data.name || !data.action) {
       return { status: 400, body: { error: "name and action are required" } };
