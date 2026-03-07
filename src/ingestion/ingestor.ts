@@ -35,6 +35,7 @@ export class Ingestor {
     try {
       response = await this.defcon.createEntity({
         flowName: event.flowName,
+        ...(event.payload !== undefined ? { payload: event.payload } : {}),
       });
     } catch (err) {
       // Clean up the sentinel so future events can retry.

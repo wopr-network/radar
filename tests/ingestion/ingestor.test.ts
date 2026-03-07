@@ -30,6 +30,7 @@ describe("Ingestor", () => {
     expect(defcon.createEntity).toHaveBeenCalledOnce();
     expect(defcon.createEntity).toHaveBeenCalledWith({
       flowName: "wopr-release",
+      payload: { tag: "v1.0.0" },
     });
     expect(defcon.report).not.toHaveBeenCalled();
   });
