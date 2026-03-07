@@ -8,7 +8,7 @@ function buildSearchQuery(filter: { stateName?: string; teamIds?: string[] }): s
 
   const vars: string[] = ["$first: Int", "$after: String"];
   if (hasState) vars.push("$stateName: String!");
-  if (hasTeams) vars.push("$teamIds: [String!]!");
+  if (hasTeams) vars.push("$teamIds: [ID!]!");
 
   const filters: string[] = [];
   if (hasState) filters.push("state: { name: { eq: $stateName } }");
@@ -26,6 +26,7 @@ function buildSearchQuery(filter: { stateName?: string; teamIds?: string[] }): s
           description
           state { type name }
           labels { nodes { name } }
+          team { id }
         }
         pageInfo {
           hasNextPage
@@ -81,6 +82,7 @@ interface SearchIssuesResponse {
         description: string | null;
         state: { type: string; name: string };
         labels: { nodes: Array<{ name: string }> };
+        team: { id: string };
       }>;
       pageInfo: {
         hasNextPage: boolean;
@@ -134,9 +136,9 @@ export class LinearClient {
     const pageSize = filter.first ?? 50;
     const allIssues: LinearSearchIssue[] = [];
     let cursor: string | null = null;
+    const query = buildSearchQuery(filter);
 
     do {
-      const query = buildSearchQuery(filter);
       const variables: Record<string, unknown> = { first: pageSize, after: cursor ?? undefined };
       if (filter.stateName !== undefined) variables.stateName = filter.stateName;
       if (filter.teamIds !== undefined && filter.teamIds.length > 0) variables.teamIds = filter.teamIds;
@@ -173,6 +175,7 @@ export class LinearClient {
           description: n.description,
           state: n.state as LinearIssueState,
           labels: n.labels.nodes,
+          team: n.team,
         });
       }
 

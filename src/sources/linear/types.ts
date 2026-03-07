@@ -34,6 +34,7 @@ export interface LinearSearchIssue {
   description: string | null;
   state: LinearIssueState;
   labels: Array<{ name: string }>;
+  team?: { id: string };
 }
 
 export interface LinearWatchFilter {

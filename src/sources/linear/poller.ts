@@ -139,6 +139,10 @@ export class LinearPoller {
       if (!hasMatch) return false;
     }
 
+    if (filter.teamIds && filter.teamIds.length > 0) {
+      if (!filter.teamIds.includes(issue.team?.id ?? "")) return false;
+    }
+
     return true;
   }
 }
