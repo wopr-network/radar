@@ -14,6 +14,8 @@ export type { IngestEvent } from "./ingestion/index.js";
 export { IngestEventSchema, Ingestor } from "./ingestion/index.js";
 export { Pool } from "./pool/index.js";
 export type { SlotState, WorkerResult } from "./pool/types.js";
+export type { RunLoopConfig } from "./run-loop/index.js";
+export { RunLoop } from "./run-loop/index.js";
 export type { LoadSeedDeps, LoadSeedResult, SeedFile, SeedFlow, SeedSource, SeedWatch } from "./seed/index.js";
 export { expandEnvVars, loadSeed } from "./seed/index.js";
 export type { GitHubSourceAdapterConfig } from "./sources/index.js";
