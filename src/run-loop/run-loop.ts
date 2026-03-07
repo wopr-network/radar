@@ -59,16 +59,26 @@ export class RunLoop {
 
     const timeout = this.config.stopTimeoutMs ?? 5000;
     const allSettled = Promise.allSettled(this.slotPromises.values());
-    const forceTimeout = new Promise<void>((resolve) => setTimeout(resolve, timeout));
+    let forceTimeoutHandle: ReturnType<typeof setTimeout> | undefined;
+    const forceTimeout = new Promise<void>((resolve) => {
+      forceTimeoutHandle = setTimeout(resolve, timeout);
+    });
 
     await Promise.race([allSettled, forceTimeout]);
+    clearTimeout(forceTimeoutHandle);
 
     this.slotPromises.clear();
     this.abortController = null;
   }
 
   private get signal(): AbortSignal {
-    if (!this.abortController) throw new Error("RunLoop is not running");
+    if (!this.abortController) {
+      // Controller was nulled after force-timeout; return a pre-aborted signal
+      // so any in-flight slot coroutines see aborted=true and exit cleanly.
+      const ac = new AbortController();
+      ac.abort();
+      return ac.signal;
+    }
     return this.abortController.signal;
   }
 
