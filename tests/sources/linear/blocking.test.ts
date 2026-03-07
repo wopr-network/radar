@@ -12,7 +12,7 @@ describe("checkBlocking", () => {
   it("returns unblocked when all blockers are completed", () => {
     const relations: LinearRelation[] = [
       {
-        type: "blocks",
+        type: "blocked_by",
         relatedIssue: {
           identifier: "WOP-100",
           title: "Some blocker",
@@ -28,7 +28,7 @@ describe("checkBlocking", () => {
   it("returns unblocked when all blockers are cancelled", () => {
     const relations: LinearRelation[] = [
       {
-        type: "blocks",
+        type: "blocked_by",
         relatedIssue: {
           identifier: "WOP-101",
           title: "Cancelled blocker",
@@ -44,7 +44,7 @@ describe("checkBlocking", () => {
   it("returns blocked when a blocker is in progress", () => {
     const relations: LinearRelation[] = [
       {
-        type: "blocks",
+        type: "blocked_by",
         relatedIssue: {
           identifier: "WOP-102",
           title: "Active blocker",
@@ -85,7 +85,7 @@ describe("checkBlocking", () => {
   it("returns only unresolved blockers in the blockers list", () => {
     const relations: LinearRelation[] = [
       {
-        type: "blocks",
+        type: "blocked_by",
         relatedIssue: {
           identifier: "WOP-200",
           title: "Done blocker",
@@ -93,7 +93,7 @@ describe("checkBlocking", () => {
         },
       },
       {
-        type: "blocks",
+        type: "blocked_by",
         relatedIssue: {
           identifier: "WOP-201",
           title: "Still blocking",
@@ -101,7 +101,7 @@ describe("checkBlocking", () => {
         },
       },
       {
-        type: "blocks",
+        type: "blocked_by",
         relatedIssue: {
           identifier: "WOP-202",
           title: "Also blocking",

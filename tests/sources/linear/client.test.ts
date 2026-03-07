@@ -80,4 +80,16 @@ describe("LinearClient", () => {
     const client = new LinearClient({ apiKey: "test-key" });
     await expect(client.getIssueWithRelations("issue-1")).rejects.toThrow("Issue not found");
   });
+
+  it("throws descriptive error when issue is null in response", async () => {
+    vi.mocked(globalThis.fetch).mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ data: { issue: null } }),
+    } as Response);
+
+    const client = new LinearClient({ apiKey: "test-key" });
+    await expect(client.getIssueWithRelations("nonexistent-id")).rejects.toThrow(
+      "Issue nonexistent-id not found",
+    );
+  });
 });

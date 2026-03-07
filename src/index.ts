@@ -14,7 +14,7 @@ export type { LoadSeedDeps, LoadSeedResult, SeedFile, SeedFlow, SeedSource, Seed
 export { expandEnvVars, loadSeed } from "./seed/index.js";
 export type { GitHubSourceAdapterConfig } from "./sources/index.js";
 export { GitHubSourceAdapter, validateBranchName, validateWorktreePath } from "./sources/index.js";
-export { InMemoryWorkerRepo } from "./worker/index.js";
-export type { Worker, WorkerStatus } from "./worker/types.js";
 export type { BlockingCheckResult, LinearIssue } from "./sources/linear/index.js";
 export { checkBlocking, LinearClient } from "./sources/linear/index.js";
+export { InMemoryWorkerRepo } from "./worker/index.js";
+export type { Worker, WorkerStatus } from "./worker/types.js";

@@ -81,6 +81,11 @@ export class LinearClient {
     }
 
     const issue = json.data.issue;
+
+    if (!issue) {
+      throw new Error(`Issue ${issueId} not found`);
+    }
+
     return {
       id: issue.id,
       identifier: issue.identifier,
