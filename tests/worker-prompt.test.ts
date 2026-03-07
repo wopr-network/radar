@@ -46,4 +46,24 @@ describe("renderWorkerPrompt", () => {
     });
     expect(result).toContain("flow.report");
   });
+
+  it("escapes special characters in workerId within JSON body", () => {
+    const result = renderWorkerPrompt({
+      workerId: 'wkr-"evil"',
+      discipline: "engineering",
+      defconUrl: "http://localhost:3000",
+    });
+    expect(result).not.toContain('"workerId": "wkr-"evil""');
+    expect(result).toContain('"workerId": "wkr-\\"evil\\""');
+  });
+
+  it("normalizes trailing slash in DEFCON URL", () => {
+    const result = renderWorkerPrompt({
+      workerId: "wkr-abc-123",
+      discipline: "engineering",
+      defconUrl: "http://localhost:3000/",
+    });
+    expect(result).not.toContain("//api/mcp");
+    expect(result).toContain("http://localhost:3000/api/mcp");
+  });
 });

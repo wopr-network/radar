@@ -20,6 +20,8 @@ program
     process.exit(0);
   });
 
+const VALID_DISCIPLINES = ["engineering", "devops", "qa", "security"] as const;
+
 const worker = program.command("worker").description("Worker management");
 
 worker
@@ -29,6 +31,10 @@ worker
   .option("--defcon-url <url>", "DEFCON server URL", "http://localhost:3000")
   .option("--worker-id <id>", "Use a specific worker ID instead of generating one")
   .action((opts) => {
+    if (!(VALID_DISCIPLINES as readonly string[]).includes(opts.discipline)) {
+      console.error(`Error: invalid discipline "${opts.discipline}". Must be one of: ${VALID_DISCIPLINES.join(", ")}`);
+      process.exit(1);
+    }
     const workerId = opts.workerId ?? `wkr-${randomUUID()}`;
     const prompt = renderWorkerPrompt({
       workerId,
