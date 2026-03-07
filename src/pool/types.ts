@@ -15,4 +15,5 @@ export interface Slot {
   result: WorkerResult | null;
   flowName: string | null;
   repo: string | null;
+  lastHeartbeat: number;
 }
