@@ -121,6 +121,40 @@ describe("HealthMonitor", () => {
     expect(pool.activeSlots()).toHaveLength(0);
   });
 
+  it("does not release slot if heartbeat arrives during defcon.report await", async () => {
+    const pool = new Pool(4);
+    // defcon.report takes time; during it, the heartbeat fires and updates lastHeartbeat
+    let resolveReport!: () => void;
+    const reportFn = vi.fn().mockImplementation(
+      () =>
+        new Promise<{ next_action: string; message: string; retry_after_ms: number }>((resolve) => {
+          resolveReport = () => resolve({ next_action: "check_back", message: "ok", retry_after_ms: 1000 });
+        }),
+    );
+    const client = { report: reportFn } as unknown as DefconClient;
+    const monitor = new HealthMonitor(pool, client, FAST_CONFIG);
+
+    pool.allocate("s1", "w1", "e1", "do stuff");
+    const slot = pool.activeSlots()[0];
+    // Make slot appear stale
+    slot.lastHeartbeat = Date.now() - FAST_CONFIG.deadWorkerThresholdMs - 1;
+
+    monitor.start();
+    // Advance enough to trigger check(); defcon.report is now awaiting
+    await vi.advanceTimersByTimeAsync(FAST_CONFIG.heartbeatIntervalMs + 10);
+
+    // Simulate heartbeat arriving while defcon.report is in flight
+    slot.lastHeartbeat = Date.now();
+
+    // Now resolve defcon.report
+    resolveReport();
+    await vi.advanceTimersByTimeAsync(0);
+    monitor.stop();
+
+    // Slot sent a heartbeat mid-await — must NOT be released
+    expect(pool.activeSlots()).toHaveLength(1);
+  });
+
   it("stop() clears the interval", () => {
     const pool = new Pool(4);
     const { client } = makeDefconClient();

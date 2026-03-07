@@ -54,6 +54,12 @@ export class HealthMonitor {
         }
       }
 
+      // Re-check staleness: heartbeat may have arrived during the await above.
+      // If so, the slot is alive — skip release.
+      if (Date.now() - slot.lastHeartbeat <= this.config.deadWorkerThresholdMs) {
+        continue;
+      }
+
       try {
         this.pool.release(slot.slotId);
       } catch (err) {
