@@ -1,1 +1,3 @@
-export type { Dispatcher, WorkerResult } from "./types.js";
+export { ClaudeCodeDispatcher } from "./claude-code-dispatcher.js";
+export { parseSignal } from "./parse-signal.js";
+export type { Dispatcher, DispatchOpts, WorkerResult } from "./types.js";
