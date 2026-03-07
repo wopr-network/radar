@@ -9,8 +9,8 @@ export class Pool {
   }
 
   allocate(slotId: string, workerId: string, entityId: string, prompt: string): Slot | null {
-    if (this.slots.size >= this.capacity) return null;
     if (this.slots.has(slotId)) throw new Error(`Slot already allocated: ${slotId}`);
+    if (this.slots.size >= this.capacity) return null;
     const slot: Slot = {
       slotId,
       workerId,
