@@ -1,7 +1,11 @@
 import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { SeedFileSchema } from "../../src/seed/types.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 describe("seeds/norad.json", () => {
   const seedPath = resolve(__dirname, "../../seeds/norad.json");
@@ -28,14 +32,6 @@ describe("seeds/norad.json", () => {
     const linearSource = parsed.sources.find((s: { type: string }) => s.type === "linear");
     expect(linearSource).toBeDefined();
     expect(linearSource.token).toBe("${LINEAR_API_KEY}");
-  });
-
-  it("has GitHub source with env var token", () => {
-    const raw = readFileSync(seedPath, "utf-8");
-    const parsed = JSON.parse(raw);
-    const githubSource = parsed.sources.find((s: { type: string }) => s.type === "github");
-    expect(githubSource).toBeDefined();
-    expect(githubSource.token).toBe("${GITHUB_TOKEN}");
   });
 
   it("has watches for all WOPR domain labels", () => {

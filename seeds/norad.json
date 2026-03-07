@@ -38,14 +38,6 @@
       "config": {
         "teamKey": "WOP"
       }
-    },
-    {
-      "id": "github-main",
-      "type": "github",
-      "token": "${GITHUB_TOKEN}",
-      "config": {
-        "org": "wopr-network"
-      }
     }
   ],
   "watches": [
