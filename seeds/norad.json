@@ -1,0 +1,101 @@
+{
+  "flows": [
+    {
+      "name": "wopr-changeset",
+      "description": "Stub flow for watch routing — full definition lives in defcon seeds.",
+      "initialState": "backlog",
+      "maxConcurrent": 4,
+      "maxConcurrentPerRepo": 4,
+      "states": [
+        { "name": "backlog", "mode": "passive" },
+        { "name": "architecting", "agentRole": "architect", "modelTier": "opus", "mode": "active" },
+        { "name": "coding", "agentRole": "coder", "modelTier": "sonnet", "mode": "active" },
+        { "name": "reviewing", "agentRole": "reviewer", "modelTier": "sonnet", "mode": "active" },
+        { "name": "fixing", "agentRole": "fixer", "modelTier": "sonnet", "mode": "active" },
+        { "name": "merging", "agentRole": "watcher", "modelTier": "haiku", "mode": "active" },
+        { "name": "stuck", "mode": "passive" },
+        { "name": "done", "mode": "passive" }
+      ],
+      "transitions": [
+        { "fromState": "backlog", "toState": "architecting", "trigger": "start" },
+        { "fromState": "architecting", "toState": "coding", "trigger": "spec_ready" },
+        { "fromState": "coding", "toState": "reviewing", "trigger": "pr_created" },
+        { "fromState": "reviewing", "toState": "merging", "trigger": "clean" },
+        { "fromState": "reviewing", "toState": "fixing", "trigger": "issues", "priority": 1 },
+        { "fromState": "fixing", "toState": "reviewing", "trigger": "fixes_pushed" },
+        { "fromState": "fixing", "toState": "stuck", "trigger": "cant_resolve", "priority": 1 },
+        { "fromState": "merging", "toState": "done", "trigger": "merged" },
+        { "fromState": "merging", "toState": "reviewing", "trigger": "blocked", "priority": 1 },
+        { "fromState": "merging", "toState": "stuck", "trigger": "closed", "priority": 2 }
+      ]
+    }
+  ],
+  "sources": [
+    {
+      "id": "linear-main",
+      "type": "linear",
+      "token": "${LINEAR_API_KEY}",
+      "config": {
+        "teamKey": "WOP"
+      }
+    }
+  ],
+  "watches": [
+    {
+      "id": "watch-linear-defcon",
+      "sourceId": "linear-main",
+      "event": "issue.state_change",
+      "flowName": "wopr-changeset",
+      "filter": { "state": "Todo", "labels": ["defcon"] }
+    },
+    {
+      "id": "watch-linear-norad",
+      "sourceId": "linear-main",
+      "event": "issue.state_change",
+      "flowName": "wopr-changeset",
+      "filter": { "state": "Todo", "labels": ["norad"] }
+    },
+    {
+      "id": "watch-linear-wopr-platform",
+      "sourceId": "linear-main",
+      "event": "issue.state_change",
+      "flowName": "wopr-changeset",
+      "filter": { "state": "Todo", "labels": ["wopr-platform"] }
+    },
+    {
+      "id": "watch-linear-wopr-platform-ui",
+      "sourceId": "linear-main",
+      "event": "issue.state_change",
+      "flowName": "wopr-changeset",
+      "filter": { "state": "Todo", "labels": ["wopr-platform-ui"] }
+    },
+    {
+      "id": "watch-linear-plugin-discord",
+      "sourceId": "linear-main",
+      "event": "issue.state_change",
+      "flowName": "wopr-changeset",
+      "filter": { "state": "Todo", "labels": ["plugin-discord"] }
+    },
+    {
+      "id": "watch-linear-plugin-msteams",
+      "sourceId": "linear-main",
+      "event": "issue.state_change",
+      "flowName": "wopr-changeset",
+      "filter": { "state": "Todo", "labels": ["plugin-msteams"] }
+    },
+    {
+      "id": "watch-linear-plugin-whatsapp",
+      "sourceId": "linear-main",
+      "event": "issue.state_change",
+      "flowName": "wopr-changeset",
+      "filter": { "state": "Todo", "labels": ["plugin-whatsapp"] }
+    },
+    {
+      "id": "watch-linear-security",
+      "sourceId": "linear-main",
+      "event": "issue.state_change",
+      "flowName": "wopr-changeset",
+      "filter": { "state": "Todo", "labels": ["security"] }
+    }
+  ]
+}

@@ -53,17 +53,24 @@ function ensureTables(db: Database.Database): void {
   `);
 }
 
-function expandEnvVarsInValue(value: unknown): unknown {
+// Keys that hold credentials — expanded only at use time, never persisted expanded.
+const SENSITIVE_KEYS = new Set(["token"]);
+
+function expandEnvVarsInValue(value: unknown, key?: string): unknown {
+  if (SENSITIVE_KEYS.has(key ?? "")) {
+    // Leave sensitive fields as env-var references so they are never stored in plaintext.
+    return value;
+  }
   if (typeof value === "string") {
     return expandEnvVars(value);
   }
   if (Array.isArray(value)) {
-    return value.map(expandEnvVarsInValue);
+    return value.map((item) => expandEnvVarsInValue(item));
   }
   if (value !== null && typeof value === "object") {
     const result: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
-      result[k] = expandEnvVarsInValue(v);
+      result[k] = expandEnvVarsInValue(v, k);
     }
     return result;
   }
@@ -79,15 +86,14 @@ export async function loadSeed(seedPath: string, deps: LoadSeedDeps): Promise<Lo
   ensureTables(deps.db);
 
   for (const flow of seed.flows) {
-    const res = await fetch(`${deps.defconUrl}/api/mcp`, {
-      method: "POST",
+    // PUT /api/flows/:id is idempotent — creates the flow if absent, updates it if already present.
+    const res = await fetch(`${deps.defconUrl}/api/flows/${encodeURIComponent(flow.name)}`, {
+      method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        tool: "admin.flow.create",
-        params: {
-          name: flow.name,
+        description: flow.description,
+        definition: {
           initialState: flow.initialState,
-          description: flow.description,
           maxConcurrent: flow.maxConcurrent,
           maxConcurrentPerRepo: flow.maxConcurrentPerRepo,
           states: flow.states.map((s) => ({
