@@ -15,6 +15,8 @@ export type RouteHandler = (ctx: RouteContext) => Promise<RouteResult>;
 export interface RouteContext {
   params: RouteParams;
   body: unknown;
+  rawBody: string;
+  headers: Record<string, string | string[] | undefined>;
   query: URLSearchParams;
 }
 
