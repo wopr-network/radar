@@ -56,7 +56,13 @@ export class RunLoop {
   async stop(): Promise<void> {
     if (!this.abortController) return;
     this.abortController.abort();
-    await Promise.allSettled(this.slotPromises.values());
+
+    const timeout = this.config.stopTimeoutMs ?? 5000;
+    const allSettled = Promise.allSettled(this.slotPromises.values());
+    const forceTimeout = new Promise<void>((resolve) => setTimeout(resolve, timeout));
+
+    await Promise.race([allSettled, forceTimeout]);
+
     this.slotPromises.clear();
     this.abortController = null;
   }
@@ -96,7 +102,7 @@ export class RunLoop {
     this.pendingClaims++;
     let claim: ClaimResponse;
     try {
-      claim = await defcon.claim({ workerId, role, flow });
+      claim = await defcon.claim({ workerId, role, flow }, { signal: this.signal });
     } finally {
       this.pendingClaims--;
     }
@@ -132,12 +138,15 @@ export class RunLoop {
     const slot = pool.allocate(slotId, workerId, claim.entityId, claim.prompt, claimFlow, claimRepo);
     if (!slot) {
       try {
-        await defcon.report({
-          workerId,
-          entityId: claim.entityId,
-          signal: "crash",
-          artifacts: { error: "slot unavailable" },
-        });
+        await defcon.report(
+          {
+            workerId,
+            entityId: claim.entityId,
+            signal: "crash",
+            artifacts: { error: "slot unavailable" },
+          },
+          { signal: this.signal },
+        );
       } catch {}
       await sleep(this.pollIntervalMs, this.signal);
       return;
@@ -169,12 +178,15 @@ export class RunLoop {
         pool.setState(slotId, "reporting");
         let response: ReportResponse;
         try {
-          response = await defcon.report({
-            workerId,
-            entityId: claim.entityId,
-            signal: currentSignal,
-            artifacts: currentArtifacts,
-          });
+          response = await defcon.report(
+            {
+              workerId,
+              entityId: claim.entityId,
+              signal: currentSignal,
+              artifacts: currentArtifacts,
+            },
+            { signal: this.signal },
+          );
         } catch (err) {
           if (!this.signal.aborted) {
             console.error(`[norad] slot ${slotId} report error:`, (err as Error).message);

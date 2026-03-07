@@ -12,4 +12,5 @@ export interface RunLoopConfig {
   workerIdPrefix?: string;
   maxConcurrent?: number;
   maxConcurrentPerRepo?: number;
+  stopTimeoutMs?: number;
 }

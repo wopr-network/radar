@@ -86,6 +86,7 @@ describe("RunLoop", () => {
         signal: "done",
         artifacts: { echo: "Hello world" },
       }),
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
     );
     expect(pool.activeSlots()).toHaveLength(0);
   });
@@ -259,6 +260,7 @@ describe("RunLoop", () => {
         signal: "crash",
         artifacts: { error: "process exploded" },
       }),
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
     );
   });
 
