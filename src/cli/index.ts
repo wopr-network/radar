@@ -12,11 +12,11 @@ const VALID_DISCIPLINES = ["engineering", "devops", "qa", "security"] as const;
 program
   .command("run")
   .description("Start the worker pool")
-  .requiredOption("-w, --workers <n>", "Number of worker slots", parseInt)
+  .requiredOption("-w, --workers <n>", "Number of worker slots", (v: string) => parseInt(v, 10))
   .requiredOption("-r, --role <role>", "Worker discipline (engineering, devops, qa, security)")
   .option("-f, --flow <flow>", "Restrict to a specific flow")
-  .option("--max-concurrent <n>", "Max concurrent entities for the flow", parseInt)
-  .option("--max-concurrent-per-repo <n>", "Max concurrent entities per repo", parseInt)
+  .option("--max-concurrent <n>", "Max concurrent entities for the flow", (v: string) => parseInt(v, 10))
+  .option("--max-concurrent-per-repo <n>", "Max concurrent entities per repo", (v: string) => parseInt(v, 10))
   .option("--defcon-url <url>", "DEFCON server URL", "http://localhost:3000")
   .action(async (opts) => {
     if (!(VALID_DISCIPLINES as readonly string[]).includes(opts.role)) {
