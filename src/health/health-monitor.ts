@@ -7,6 +7,7 @@ export class HealthMonitor {
   private defcon: DefconClient;
   private config: HealthMonitorConfig;
   private timer: ReturnType<typeof setInterval> | null = null;
+  private checking = false;
 
   constructor(pool: Pool, defcon: DefconClient, config: HealthMonitorConfig) {
     this.pool = pool;
@@ -17,7 +18,11 @@ export class HealthMonitor {
   start(): void {
     if (this.timer) return;
     this.timer = setInterval(() => {
-      void this.check();
+      if (this.checking) return;
+      this.checking = true;
+      this.check().finally(() => {
+        this.checking = false;
+      });
     }, this.config.heartbeatIntervalMs);
   }
 
@@ -44,15 +49,15 @@ export class HealthMonitor {
             signal: "fail",
             artifacts: { reason: "worker_timeout" },
           });
-        } catch {
-          // Log but don't crash — slot still gets released
+        } catch (err) {
+          console.error("[HealthMonitor] Error reporting dead slot:", err);
         }
       }
 
       try {
         this.pool.release(slot.slotId);
-      } catch {
-        // Slot may have been released concurrently
+      } catch (err) {
+        console.error("[HealthMonitor] Error releasing slot:", err);
       }
     }
   }

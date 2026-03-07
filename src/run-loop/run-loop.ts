@@ -179,6 +179,9 @@ export class RunLoop {
       while (!this.signal.aborted) {
         if (currentSignal === undefined) {
           pool.setState(slotId, "working");
+          const heartbeatInterval = setInterval(() => {
+            pool.heartbeat(slotId);
+          }, this.pollIntervalMs);
           try {
             const result = await dispatcher.dispatch(currentPrompt, {
               modelTier,
@@ -190,6 +193,8 @@ export class RunLoop {
           } catch (err) {
             currentSignal = "crash";
             currentArtifacts = { error: (err as Error).message };
+          } finally {
+            clearInterval(heartbeatInterval);
           }
         }
 
