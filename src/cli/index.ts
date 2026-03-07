@@ -46,6 +46,12 @@ export function buildProgram(): Command {
         process.exit(1);
       }
 
+      const port = opts.port as number;
+      if (Number.isNaN(port) || port < 1 || port > 65535) {
+        console.error(`Invalid port: ${String(opts.port)}`);
+        process.exit(1);
+      }
+
       const { createDb } = await import("../db/index.js");
       const { SourceRepo: DbSourceRepo } = await import("../db/repos/source-repo.js");
       const { WatchRepo: DbWatchRepo } = await import("../db/repos/watch-repo.js");
@@ -61,7 +67,7 @@ export function buildProgram(): Command {
 
       if (opts.seed) {
         const { default: Database } = await import("better-sqlite3");
-        const { loadSeed, expandEnvVars } = await import("../seed/loader.js");
+        const { loadSeed, expandEnvVarsInValue } = await import("../seed/loader.js");
         const { SeedFileSchema } = await import("../seed/types.js");
         const { readFileSync } = await import("node:fs");
         const { resolve } = await import("node:path");
@@ -81,8 +87,7 @@ export function buildProgram(): Command {
         try {
           const absPath = resolve(opts.seed as string);
           const rawText = readFileSync(absPath, "utf-8");
-          const expanded = expandEnvVars(rawText);
-          const seed = SeedFileSchema.parse(JSON.parse(expanded));
+          const seed = SeedFileSchema.parse(expandEnvVarsInValue(JSON.parse(rawText)));
           const now = Math.floor(Date.now() / 1000);
           for (const source of seed.sources) {
             const { id, type, config, ...rest } = source;
@@ -397,7 +402,6 @@ export function buildProgram(): Command {
         onWebhook: async (_sourceId: string, _payload: unknown) => {},
       });
 
-      const port = opts.port as number;
       await new Promise<void>((res) => apiServer.listen(port, res));
       console.log(`[norad] API server listening on port ${port}`);
 

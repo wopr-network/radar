@@ -80,6 +80,68 @@ describe("norad run CLI parsing", () => {
   });
 });
 
+describe("port validation", () => {
+  it("accepts valid port number", () => {
+    const program = makeProgram();
+    program.parse(["node", "norad", "run", "-w", "1", "-r", "engineering", "--port", "9090"]);
+    const opts = program.commands[0].opts();
+    expect(opts.port).toBe(9090);
+  });
+
+  it("uses default port 8080 when not specified", () => {
+    const program = makeProgram();
+    program.parse(["node", "norad", "run", "-w", "1", "-r", "engineering"]);
+    const opts = program.commands[0].opts();
+    expect(opts.port).toBe(8080);
+  });
+
+  it("exits with error for non-numeric port", async () => {
+    const exitSpy = vi.spyOn(process, "exit").mockImplementation((() => {
+      throw new Error("process.exit called");
+    }) as () => never);
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const program = buildProgram();
+    program.exitOverride();
+    try {
+      await expect(
+        program.parseAsync(["node", "norad", "run", "-w", "1", "-r", "engineering", "--port", "foo"]),
+      ).rejects.toThrow("process.exit called");
+      expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("Invalid port"));
+    } finally {
+      exitSpy.mockRestore();
+      errorSpy.mockRestore();
+    }
+  });
+
+  it("exits with error for port 0", async () => {
+    const exitSpy = vi.spyOn(process, "exit").mockImplementation((() => {
+      throw new Error("process.exit called");
+    }) as () => never);
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const program = buildProgram();
+    program.exitOverride();
+    try {
+      await expect(
+        program.parseAsync(["node", "norad", "run", "-w", "1", "-r", "engineering", "--port", "0"]),
+      ).rejects.toThrow("process.exit called");
+      expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("Invalid port"));
+    } finally {
+      exitSpy.mockRestore();
+      errorSpy.mockRestore();
+    }
+  });
+
+  it("rejects port > 65535 (Commander range check)", async () => {
+    const program = buildProgram();
+    program.exitOverride();
+    await expect(
+      program.parseAsync(["node", "norad", "run", "-w", "1", "-r", "engineering", "--port", "99999"]),
+    ).rejects.toThrow();
+  });
+});
+
 describe("role validation", () => {
   it("accepts valid disciplines", () => {
     for (const role of ["engineering", "devops", "qa", "security"]) {
