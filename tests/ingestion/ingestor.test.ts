@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { createDb } from "../../src/db/index.js";
 import type { DefconClient } from "../../src/defcon/client.js";
+import { DrizzleEntityMapRepository } from "../../src/db/repos/entity-map-repo.js";
 import { Ingestor } from "../../src/ingestion/ingestor.js";
 
 function makeDefcon(overrides: Partial<DefconClient> = {}): DefconClient {
@@ -16,7 +17,7 @@ describe("Ingestor", () => {
   it("creates a new entity for a 'new' event", async () => {
     const db = createDb();
     const defcon = makeDefcon();
-    const ingestor = new Ingestor(db, defcon);
+    const ingestor = new Ingestor(new DrizzleEntityMapRepository(db), defcon);
 
     await ingestor.ingest({
       sourceId: "gh",
@@ -37,7 +38,7 @@ describe("Ingestor", () => {
   it("deduplicates: skips createEntity on second 'new' for same externalId", async () => {
     const db = createDb();
     const defcon = makeDefcon();
-    const ingestor = new Ingestor(db, defcon);
+    const ingestor = new Ingestor(new DrizzleEntityMapRepository(db), defcon);
 
     await ingestor.ingest({ sourceId: "gh", externalId: "pr-42", type: "new", flowName: "wopr-release" });
     await ingestor.ingest({ sourceId: "gh", externalId: "pr-42", type: "new", flowName: "wopr-release" });
@@ -48,7 +49,7 @@ describe("Ingestor", () => {
   it("calls flow.report for an 'update' event on a known entity", async () => {
     const db = createDb();
     const defcon = makeDefcon();
-    const ingestor = new Ingestor(db, defcon);
+    const ingestor = new Ingestor(new DrizzleEntityMapRepository(db), defcon);
 
     await ingestor.ingest({ sourceId: "gh", externalId: "pr-42", type: "new", flowName: "wopr-release" });
     await ingestor.ingest({
@@ -72,7 +73,7 @@ describe("Ingestor", () => {
   it("ignores 'update' for unknown externalId", async () => {
     const db = createDb();
     const defcon = makeDefcon();
-    const ingestor = new Ingestor(db, defcon);
+    const ingestor = new Ingestor(new DrizzleEntityMapRepository(db), defcon);
 
     await ingestor.ingest({ sourceId: "gh", externalId: "pr-99", type: "update", flowName: "wopr-release" });
 
@@ -83,7 +84,7 @@ describe("Ingestor", () => {
   it("uses 'update' as default signal when signal is omitted", async () => {
     const db = createDb();
     const defcon = makeDefcon();
-    const ingestor = new Ingestor(db, defcon);
+    const ingestor = new Ingestor(new DrizzleEntityMapRepository(db), defcon);
 
     await ingestor.ingest({ sourceId: "gh", externalId: "pr-42", type: "new", flowName: "wopr-release" });
     await ingestor.ingest({ sourceId: "gh", externalId: "pr-42", type: "update", flowName: "wopr-release" });
@@ -96,7 +97,7 @@ describe("Ingestor", () => {
   it("throws ZodError for invalid event", async () => {
     const db = createDb();
     const defcon = makeDefcon();
-    const ingestor = new Ingestor(db, defcon);
+    const ingestor = new Ingestor(new DrizzleEntityMapRepository(db), defcon);
 
     await expect(ingestor.ingest({ sourceId: "", externalId: "x", type: "new", flowName: "f" })).rejects.toThrow();
   });
@@ -104,7 +105,7 @@ describe("Ingestor", () => {
   it("scopes entity map by sourceId — same externalId from different sources are independent", async () => {
     const db = createDb();
     const defcon = makeDefcon();
-    const ingestor = new Ingestor(db, defcon);
+    const ingestor = new Ingestor(new DrizzleEntityMapRepository(db), defcon);
 
     await ingestor.ingest({ sourceId: "gh", externalId: "pr-1", type: "new", flowName: "wopr-release" });
     await ingestor.ingest({ sourceId: "linear", externalId: "pr-1", type: "new", flowName: "wopr-release" });

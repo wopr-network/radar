@@ -1,4 +1,4 @@
-import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 export const sources = sqliteTable("sources", {
   id: text("id").primaryKey(),
@@ -47,8 +47,14 @@ export const workers = sqliteTable("workers", {
   createdAt: integer("created_at").notNull(),
 });
 
-export const entityMap = sqliteTable("entity_map", {
-  id: text("id").primaryKey(),
-  entityId: text("entity_id").notNull(),
-  createdAt: integer("created_at").notNull(),
-});
+export const entityMap = sqliteTable(
+  "entity_map",
+  {
+    id: text("id").primaryKey(),
+    sourceId: text("source_id").notNull(),
+    externalId: text("external_id").notNull(),
+    entityId: text("entity_id").notNull(),
+    createdAt: integer("created_at").notNull(),
+  },
+  (t) => [uniqueIndex("entity_map_source_external_uniq").on(t.sourceId, t.externalId)],
+);

@@ -50,8 +50,11 @@ function initSqlite(path: string): InstanceType<typeof Database> {
     );
     CREATE TABLE IF NOT EXISTS entity_map (
       id TEXT PRIMARY KEY,
+      source_id TEXT NOT NULL,
+      external_id TEXT NOT NULL,
       entity_id TEXT NOT NULL,
-      created_at INTEGER NOT NULL
+      created_at INTEGER NOT NULL,
+      UNIQUE (source_id, external_id)
     );
   `);
   return sqlite;

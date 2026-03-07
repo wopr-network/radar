@@ -22,10 +22,12 @@ export class DefconClient {
   }
 
   async createEntity(params: { flowName: string; payload: Record<string, unknown> }): Promise<CreateEntityResponse> {
+    const signal = AbortSignal.timeout(30_000);
     const res = await fetch(`${this.url}/api/mcp`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ tool: "admin.entity.create", params }),
+      signal,
     });
     if (!res.ok) throw new Error(`admin.entity.create failed: ${res.status}`);
     return res.json() as Promise<CreateEntityResponse>;
