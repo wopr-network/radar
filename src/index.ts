@@ -12,5 +12,7 @@ export { Pool } from "./pool/index.js";
 export type { SlotState, WorkerResult } from "./pool/types.js";
 export type { LoadSeedDeps, LoadSeedResult, SeedFile, SeedFlow, SeedSource, SeedWatch } from "./seed/index.js";
 export { expandEnvVars, loadSeed } from "./seed/index.js";
+export type { GitHubSourceAdapterConfig } from "./sources/index.js";
+export { GitHubSourceAdapter, validateBranchName, validateWorktreePath } from "./sources/index.js";
 export { InMemoryWorkerRepo } from "./worker/index.js";
 export type { Worker, WorkerStatus } from "./worker/types.js";
