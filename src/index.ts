@@ -10,6 +10,8 @@ export { WorkerRepo } from "./db/repos/worker-repo.js";
 export { DefconClient } from "./defcon/index.js";
 export type { Dispatcher, DispatchOpts } from "./dispatcher/index.js";
 export { ClaudeCodeDispatcher, parseSignal } from "./dispatcher/index.js";
+export type { HealthMonitorConfig } from "./health/index.js";
+export { DEFAULT_HEALTH_CONFIG, HealthMonitor } from "./health/index.js";
 export type { IngestEvent } from "./ingestion/index.js";
 export { IngestEventSchema, Ingestor } from "./ingestion/index.js";
 export { Pool } from "./pool/index.js";

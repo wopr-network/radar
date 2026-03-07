@@ -27,9 +27,17 @@ export class Pool {
       result: null,
       flowName,
       repo,
+      lastHeartbeat: Date.now(),
     };
     this.slots.set(slotId, slot);
     return slot;
+  }
+
+  heartbeat(slotId: string): void {
+    const slot = this.slots.get(slotId);
+    if (slot) {
+      slot.lastHeartbeat = Date.now();
+    }
   }
 
   complete(slotId: string, result: WorkerResult): void {
@@ -37,6 +45,7 @@ export class Pool {
     if (!slot) throw new Error(`Unknown slot: ${slotId}`);
     slot.result = result;
     slot.state = "reporting";
+    slot.lastHeartbeat = Date.now();
   }
 
   release(slotId: string): void {
