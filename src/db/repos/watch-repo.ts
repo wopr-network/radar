@@ -85,7 +85,7 @@ export class WatchRepo {
 
   update(id: string, input: UpdateWatchInput): WatchRow | undefined {
     const now = Math.floor(Date.now() / 1000);
-    const values: Record<string, unknown> = { updatedAt: now };
+    const values: Partial<typeof watches.$inferInsert> = { updatedAt: now };
     if (input.name !== undefined) values.name = input.name;
     if (input.filter !== undefined) values.filter = JSON.stringify(input.filter);
     if (input.action !== undefined) values.action = input.action;

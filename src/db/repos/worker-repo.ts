@@ -69,6 +69,8 @@ export class WorkerRepo {
   }
 
   setStatus(id: string, status: string): void {
+    const row = this.db.select().from(workers).where(eq(workers.id, id)).get();
+    if (!row) throw new Error(`Worker ${id} not found`);
     this.db.update(workers).set({ status }).where(eq(workers.id, id)).run();
   }
 

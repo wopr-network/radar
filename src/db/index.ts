@@ -20,7 +20,7 @@ function initSqlite(path: string): InstanceType<typeof Database> {
     );
     CREATE TABLE IF NOT EXISTS watches (
       id TEXT PRIMARY KEY,
-      source_id TEXT NOT NULL REFERENCES sources(id),
+      source_id TEXT NOT NULL REFERENCES sources(id) ON DELETE CASCADE,
       name TEXT NOT NULL,
       filter TEXT NOT NULL,
       action TEXT NOT NULL,
@@ -31,8 +31,8 @@ function initSqlite(path: string): InstanceType<typeof Database> {
     );
     CREATE TABLE IF NOT EXISTS event_log (
       id TEXT PRIMARY KEY,
-      source_id TEXT NOT NULL REFERENCES sources(id),
-      watch_id TEXT REFERENCES watches(id),
+      source_id TEXT NOT NULL REFERENCES sources(id) ON DELETE CASCADE,
+      watch_id TEXT REFERENCES watches(id) ON DELETE CASCADE,
       raw_event TEXT NOT NULL,
       action_taken TEXT,
       defcon_response TEXT,
