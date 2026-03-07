@@ -4,7 +4,9 @@ import { entityMap } from "../schema.js";
 
 export interface IEntityMapRepository {
   findEntityId(sourceId: string, externalId: string): string | undefined;
-  insertIfAbsent(sourceId: string, externalId: string, entityId: string): void;
+  /** Returns true if the row was inserted, false if it already existed. */
+  insertIfAbsent(sourceId: string, externalId: string, entityId: string): boolean;
+  updateEntityId(sourceId: string, externalId: string, entityId: string): void;
 }
 
 export class DrizzleEntityMapRepository implements IEntityMapRepository {
@@ -19,13 +21,22 @@ export class DrizzleEntityMapRepository implements IEntityMapRepository {
     return row?.entityId;
   }
 
-  insertIfAbsent(sourceId: string, externalId: string, entityId: string): void {
-    const id = `${sourceId}:${externalId}`;
+  insertIfAbsent(sourceId: string, externalId: string, entityId: string): boolean {
+    const id = crypto.randomUUID();
     const now = Math.floor(Date.now() / 1000);
-    this.db
+    const result = this.db
       .insert(entityMap)
       .values({ id, sourceId, externalId, entityId, createdAt: now })
       .onConflictDoNothing()
+      .run();
+    return result.changes > 0;
+  }
+
+  updateEntityId(sourceId: string, externalId: string, entityId: string): void {
+    this.db
+      .update(entityMap)
+      .set({ entityId })
+      .where(and(eq(entityMap.sourceId, sourceId), eq(entityMap.externalId, externalId)))
       .run();
   }
 }

@@ -28,8 +28,12 @@ export class Ingestor {
   }
 
   private async handleNew(event: IngestEvent): Promise<void> {
-    const existing = this.entityMapRepo.findEntityId(event.sourceId, event.externalId);
-    if (existing !== undefined) {
+    // Insert a sentinel with a placeholder entityId before the async call.
+    // Only the caller that wins the INSERT proceeds to createEntity;
+    // concurrent callers see the conflict and bail out, preventing duplicate entities.
+    const sentinel = "__pending__";
+    const won = this.entityMapRepo.insertIfAbsent(event.sourceId, event.externalId, sentinel);
+    if (!won) {
       return;
     }
 
@@ -38,7 +42,8 @@ export class Ingestor {
       payload: event.payload ?? {},
     });
 
-    this.entityMapRepo.insertIfAbsent(event.sourceId, event.externalId, response.entityId);
+    // Update the sentinel row to the real entityId.
+    this.entityMapRepo.updateEntityId(event.sourceId, event.externalId, response.entityId);
   }
 
   private async handleUpdate(event: IngestEvent): Promise<void> {

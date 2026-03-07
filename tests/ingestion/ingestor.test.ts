@@ -102,6 +102,32 @@ describe("Ingestor", () => {
     await expect(ingestor.ingest({ sourceId: "", externalId: "x", type: "new", flowName: "f" })).rejects.toThrow();
   });
 
+  it("TOCTOU: concurrent 'new' events for the same key create only one DEFCON entity", async () => {
+    const db = createDb();
+    const defcon = makeDefcon();
+    const ingestor = new Ingestor(new DrizzleEntityMapRepository(db), defcon);
+
+    // Fire two concurrent ingestions for the same key
+    await Promise.all([
+      ingestor.ingest({ sourceId: "gh", externalId: "pr-42", type: "new", flowName: "wopr-release" }),
+      ingestor.ingest({ sourceId: "gh", externalId: "pr-42", type: "new", flowName: "wopr-release" }),
+    ]);
+
+    expect(defcon.createEntity).toHaveBeenCalledOnce();
+  });
+
+  it("collision: sourceId containing ':' does not collide with different (sourceId, externalId) pair", async () => {
+    const db = createDb();
+    const defcon = makeDefcon();
+    const ingestor = new Ingestor(new DrizzleEntityMapRepository(db), defcon);
+
+    // "a:b" + "c" vs "a" + "b:c" would collide with colon-concatenation
+    await ingestor.ingest({ sourceId: "a:b", externalId: "c", type: "new", flowName: "wopr-release" });
+    await ingestor.ingest({ sourceId: "a", externalId: "b:c", type: "new", flowName: "wopr-release" });
+
+    expect(defcon.createEntity).toHaveBeenCalledTimes(2);
+  });
+
   it("scopes entity map by sourceId — same externalId from different sources are independent", async () => {
     const db = createDb();
     const defcon = makeDefcon();
