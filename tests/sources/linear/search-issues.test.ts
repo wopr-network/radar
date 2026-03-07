@@ -14,14 +14,14 @@ describe("LinearClient.searchIssues", () => {
   });
 
   it("returns issues matching state filter", async () => {
-    const mockIssues: LinearSearchIssue[] = [
+    const mockIssues = [
       {
         id: "issue-1",
         identifier: "WOP-100",
         title: "Test issue",
         description: "**Repo:** wopr-network/norad\n\nBody",
         state: { type: "unstarted", name: "Todo" },
-        labels: [{ name: "defcon" }],
+        labels: { nodes: [{ name: "defcon" }] },
       },
     ];
 
@@ -36,6 +36,7 @@ describe("LinearClient.searchIssues", () => {
     expect(result).toHaveLength(1);
     expect(result[0].identifier).toBe("WOP-100");
     expect(result[0].description).toBe("**Repo:** wopr-network/norad\n\nBody");
+    expect(result[0].labels).toEqual([{ name: "defcon" }]);
   });
 
   it("throws on API error", async () => {

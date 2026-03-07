@@ -101,4 +101,90 @@ describe("handleLinearWebhook", () => {
 
     expect(result).toBeNull();
   });
+
+  it("accepts real Linear webhook format with stateId and labelIds", () => {
+    const payload = {
+      action: "update",
+      type: "Issue",
+      data: {
+        id: "lin-uuid-2",
+        identifier: "WOP-200",
+        title: "Real webhook issue",
+        description: "**Repo:** wopr-network/norad\n\nBody",
+        stateId: "state-uuid-todo",
+        labelIds: ["label-uuid-defcon"],
+      },
+      updatedFrom: { stateId: "old-state-id" },
+    };
+
+    const result = handleLinearWebhook(payload, {
+      sourceId: "linear-main",
+      flowName: "wopr-changeset",
+      filter: { stateId: "state-uuid-todo", labelIds: ["label-uuid-defcon"] },
+    });
+
+    expect(result).toEqual({
+      sourceId: "linear-main",
+      externalId: "lin-uuid-2",
+      type: "new",
+      flowName: "wopr-changeset",
+      payload: {
+        refs: {
+          linear: {
+            id: "lin-uuid-2",
+            key: "WOP-200",
+            title: "Real webhook issue",
+            description: "**Repo:** wopr-network/norad\n\nBody",
+          },
+          github: { repo: "wopr-network/norad" },
+        },
+      },
+    });
+  });
+
+  it("returns null when stateId does not match filter", () => {
+    const payload = {
+      action: "update",
+      type: "Issue",
+      data: {
+        id: "lin-uuid-2",
+        identifier: "WOP-200",
+        title: "Real webhook issue",
+        description: null,
+        stateId: "state-uuid-in-progress",
+        labelIds: [],
+      },
+    };
+
+    const result = handleLinearWebhook(payload, {
+      sourceId: "linear-main",
+      flowName: "wopr-changeset",
+      filter: { stateId: "state-uuid-todo" },
+    });
+
+    expect(result).toBeNull();
+  });
+
+  it("returns null when labelIds do not match filter", () => {
+    const payload = {
+      action: "update",
+      type: "Issue",
+      data: {
+        id: "lin-uuid-2",
+        identifier: "WOP-200",
+        title: "Real webhook issue",
+        description: null,
+        stateId: "state-uuid-todo",
+        labelIds: ["label-uuid-other"],
+      },
+    };
+
+    const result = handleLinearWebhook(payload, {
+      sourceId: "linear-main",
+      flowName: "wopr-changeset",
+      filter: { stateId: "state-uuid-todo", labelIds: ["label-uuid-defcon"] },
+    });
+
+    expect(result).toBeNull();
+  });
 });
