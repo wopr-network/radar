@@ -96,4 +96,20 @@ worker
     console.log(prompt);
   });
 
+program
+  .command("seed")
+  .description("Push seed file (flows, sources, watches) to DEFCON")
+  .argument("<path>", "Path to the seed JSON file")
+  .option("--defcon-url <url>", "DEFCON server URL", "http://localhost:3000")
+  .option("--db <path>", "Local SQLite database path", "norad.db")
+  .action(async (seedPath: string, opts: { defconUrl: string; db: string }) => {
+    const { runSeed } = await import("./seed-action.js");
+    try {
+      await runSeed({ seedPath, defconUrl: opts.defconUrl, db: opts.db });
+    } catch (err) {
+      console.error(`[norad] Seed failed: ${err instanceof Error ? err.message : err}`);
+      process.exit(1);
+    }
+  });
+
 program.parse();
