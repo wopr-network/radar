@@ -82,10 +82,10 @@ describe("loadSeed", () => {
 
     expect(fetch).toHaveBeenCalledTimes(1);
     const call = vi.mocked(fetch).mock.calls[0];
-    expect(call[0]).toBe("http://localhost:3000/api/mcp");
-    const body = JSON.parse(call[1]?.body as string);
-    expect(body.tool).toBe("admin.flow.create");
-    expect(body.params.name).toBe("test-flow");
+    expect(call[0]).toBe("http://localhost:3000/api/flows/test-flow");
+    expect((call[1] as RequestInit).method).toBe("PUT");
+    const body = JSON.parse((call[1] as RequestInit).body as string) as { definition: { initialState: string } };
+    expect(body.definition.initialState).toBe("open");
 
     const sources = db.prepare("SELECT * FROM sources").all() as Array<{ id: string; type: string; config: string }>;
     expect(sources).toHaveLength(1);
@@ -153,14 +153,16 @@ describe("loadSeed", () => {
     await loadSeed(seedPath, { defconUrl: "http://localhost:3000", db });
 
     const call = vi.mocked(fetch).mock.calls[0];
-    const body = JSON.parse(call[1]?.body as string);
-    expect(body.params.transitions).toBeDefined();
-    expect(body.params.transitions).toHaveLength(1);
-    expect(body.params.transitions[0].fromState).toBe("open");
-    expect(body.params.transitions[0].toState).toBe("closed");
+    const body = JSON.parse((call[1] as RequestInit).body as string) as {
+      definition: { transitions: Array<{ fromState: string; toState: string }> };
+    };
+    expect(body.definition.transitions).toBeDefined();
+    expect(body.definition.transitions).toHaveLength(1);
+    expect(body.definition.transitions[0].fromState).toBe("open");
+    expect(body.definition.transitions[0].toState).toBe("closed");
   });
 
-  it("expands env vars on object values after parse, not on raw JSON (quotes safe)", async () => {
+  it("stores token fields as env-var references, never expands them to plaintext", async () => {
     process.env.SEED_TOKEN = 'token"with"quotes';
     const seedWithToken = {
       ...validSeed,
@@ -171,7 +173,8 @@ describe("loadSeed", () => {
     expect(result.sources).toBe(1);
     const sources = db.prepare("SELECT * FROM sources").all() as Array<{ config: string }>;
     const config = JSON.parse(sources[0].config) as { token: string };
-    expect(config.token).toBe('token"with"quotes');
+    // Token must remain as the env-var reference, not the expanded plaintext value.
+    expect(config.token).toBe("$SEED_TOKEN");
     delete process.env.SEED_TOKEN;
   });
 
