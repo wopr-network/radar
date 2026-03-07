@@ -143,7 +143,6 @@ export class RunLoop {
       if (repoActive >= this.config.maxConcurrentPerRepo) {
         try {
           await defcon.report({
-            workerId,
             entityId: claim.entityId,
             signal: "crash",
             artifacts: { error: `per-repo concurrency limit reached for ${claimRepo}` },
@@ -160,7 +159,6 @@ export class RunLoop {
     if (!slot) {
       try {
         await defcon.report({
-          workerId,
           entityId: claim.entityId,
           signal: "crash",
           artifacts: { error: "slot unavailable" },
@@ -202,7 +200,6 @@ export class RunLoop {
         let response: ReportResponse;
         try {
           response = await defcon.report({
-            workerId,
             entityId: claim.entityId,
             signal: currentSignal,
             artifacts: currentArtifacts,

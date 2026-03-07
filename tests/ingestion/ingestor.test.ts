@@ -30,7 +30,6 @@ describe("Ingestor", () => {
     expect(defcon.createEntity).toHaveBeenCalledOnce();
     expect(defcon.createEntity).toHaveBeenCalledWith({
       flowName: "wopr-release",
-      payload: { tag: "v1.0.0" },
     });
     expect(defcon.report).not.toHaveBeenCalled();
   });
@@ -63,7 +62,6 @@ describe("Ingestor", () => {
 
     expect(defcon.report).toHaveBeenCalledOnce();
     expect(defcon.report).toHaveBeenCalledWith({
-      workerId: "norad",
       entityId: "entity-abc",
       signal: "merged",
       artifacts: { sha: "abc123" },

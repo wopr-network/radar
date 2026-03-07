@@ -2,19 +2,13 @@ import type { IEntityMapRepository } from "../db/repos/entity-map-repo.js";
 import type { DefconClient } from "../defcon/client.js";
 import { type IngestEvent, IngestEventSchema } from "./types.js";
 
-export interface IngestorConfig {
-  workerId?: string;
-}
-
 export class Ingestor {
   private entityMapRepo: IEntityMapRepository;
   private defcon: DefconClient;
-  private workerId: string;
 
-  constructor(entityMapRepo: IEntityMapRepository, defcon: DefconClient, config: IngestorConfig = {}) {
+  constructor(entityMapRepo: IEntityMapRepository, defcon: DefconClient) {
     this.entityMapRepo = entityMapRepo;
     this.defcon = defcon;
-    this.workerId = config.workerId ?? "norad";
   }
 
   async ingest(raw: unknown): Promise<void> {
@@ -41,7 +35,6 @@ export class Ingestor {
     try {
       response = await this.defcon.createEntity({
         flowName: event.flowName,
-        payload: event.payload ?? {},
       });
     } catch (err) {
       // Clean up the sentinel so future events can retry.
@@ -60,7 +53,6 @@ export class Ingestor {
     }
 
     await this.defcon.report({
-      workerId: this.workerId,
       entityId,
       signal: event.signal ?? "update",
       artifacts: event.payload ?? {},
