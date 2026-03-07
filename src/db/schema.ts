@@ -46,3 +46,9 @@ export const workers = sqliteTable("workers", {
   lastHeartbeat: integer("last_heartbeat").notNull(),
   createdAt: integer("created_at").notNull(),
 });
+
+export const entityMap = sqliteTable("entity_map", {
+  id: text("id").primaryKey(),
+  entityId: text("entity_id").notNull(),
+  createdAt: integer("created_at").notNull(),
+});

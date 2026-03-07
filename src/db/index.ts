@@ -48,6 +48,11 @@ function initSqlite(path: string): InstanceType<typeof Database> {
       last_heartbeat INTEGER NOT NULL,
       created_at INTEGER NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS entity_map (
+      id TEXT PRIMARY KEY,
+      entity_id TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    );
   `);
   return sqlite;
 }

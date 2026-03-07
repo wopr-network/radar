@@ -18,3 +18,7 @@ export type ReportResponse =
   | { next_action: "continue"; new_state: string; prompt: string }
   | { next_action: "waiting"; gated: true; gateName: string; gate_output: string; message?: string }
   | { next_action: "check_back"; message: string; retry_after_ms: number };
+
+export interface CreateEntityResponse {
+  entityId: string;
+}

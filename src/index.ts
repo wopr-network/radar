@@ -8,6 +8,8 @@ export { SourceRepo } from "./db/repos/source-repo.js";
 export { WatchRepo } from "./db/repos/watch-repo.js";
 export { WorkerRepo } from "./db/repos/worker-repo.js";
 export { DefconClient } from "./defcon/index.js";
+export type { IngestEvent } from "./ingestion/index.js";
+export { IngestEventSchema, Ingestor } from "./ingestion/index.js";
 export { Pool } from "./pool/index.js";
 export type { SlotState, WorkerResult } from "./pool/types.js";
 export type { LoadSeedDeps, LoadSeedResult, SeedFile, SeedFlow, SeedSource, SeedWatch } from "./seed/index.js";

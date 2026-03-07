@@ -1,4 +1,4 @@
-import type { ClaimResponse, ReportResponse } from "./types.js";
+import type { ClaimResponse, CreateEntityResponse, ReportResponse } from "./types.js";
 
 export interface DefconClientConfig {
   url: string;
@@ -19,6 +19,16 @@ export class DefconClient {
     });
     if (!res.ok) throw new Error(`flow.claim failed: ${res.status}`);
     return res.json() as Promise<ClaimResponse>;
+  }
+
+  async createEntity(params: { flowName: string; payload: Record<string, unknown> }): Promise<CreateEntityResponse> {
+    const res = await fetch(`${this.url}/api/mcp`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tool: "admin.entity.create", params }),
+    });
+    if (!res.ok) throw new Error(`admin.entity.create failed: ${res.status}`);
+    return res.json() as Promise<CreateEntityResponse>;
   }
 
   async report(params: {
