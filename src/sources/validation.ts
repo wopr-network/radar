@@ -1,6 +1,6 @@
 import { resolve, sep } from "node:path";
 
-export const BRANCH_NAME_REGEX = /^[a-zA-Z0-9/._-]+$/;
+export const BRANCH_NAME_REGEX = /^(?!.*\.\.)[a-zA-Z0-9/._-]+$/;
 
 export function getWorktreeBase(): string {
   return resolve(process.env.WORKTREE_DIR || "./worktrees");
