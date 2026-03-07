@@ -5,6 +5,10 @@ export interface DefconClientConfig {
   workerToken?: string;
 }
 
+export interface DefconRequestOptions {
+  signal?: AbortSignal;
+}
+
 export class DefconClient {
   private url: string;
   private authHeader: Record<string, string>;
@@ -14,7 +18,10 @@ export class DefconClient {
     this.authHeader = config.workerToken ? { Authorization: `Bearer ${config.workerToken}` } : {};
   }
 
-  async claim(params: { workerId?: string; role: string; flow?: string }): Promise<ClaimResponse> {
+  async claim(
+    params: { workerId?: string; role: string; flow?: string },
+    opts?: DefconRequestOptions,
+  ): Promise<ClaimResponse> {
     // workerId is best-effort affinity — REST endpoints don't carry it
     const endpoint = params.flow
       ? `${this.url}/api/flows/${encodeURIComponent(params.flow)}/claim`
@@ -23,6 +30,7 @@ export class DefconClient {
       method: "POST",
       headers: { "Content-Type": "application/json", ...this.authHeader },
       body: JSON.stringify({ role: params.role }),
+      signal: opts?.signal,
     });
     if (!res.ok) throw new Error(`flow.claim failed: ${res.status}`);
     return res.json() as Promise<ClaimResponse>;
@@ -42,12 +50,15 @@ export class DefconClient {
     return { entityId: data.id };
   }
 
-  async report(params: {
-    workerId: string;
-    entityId: string;
-    signal: string;
-    artifacts?: Record<string, unknown>;
-  }): Promise<ReportResponse> {
+  async report(
+    params: {
+      workerId: string;
+      entityId: string;
+      signal: string;
+      artifacts?: Record<string, unknown>;
+    },
+    opts?: DefconRequestOptions,
+  ): Promise<ReportResponse> {
     // flow.report blocks — no timeout applied
     const body: Record<string, unknown> = { signal: params.signal };
     if (params.artifacts) body.artifacts = params.artifacts;
@@ -55,6 +66,7 @@ export class DefconClient {
       method: "POST",
       headers: { "Content-Type": "application/json", ...this.authHeader },
       body: JSON.stringify(body),
+      signal: opts?.signal,
     });
     if (!res.ok) throw new Error(`flow.report failed: ${res.status}`);
     return res.json() as Promise<ReportResponse>;

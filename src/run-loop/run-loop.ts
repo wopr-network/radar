@@ -56,13 +56,40 @@ export class RunLoop {
   async stop(): Promise<void> {
     if (!this.abortController) return;
     this.abortController.abort();
-    await Promise.allSettled(this.slotPromises.values());
+
+    const timeout = this.config.stopTimeoutMs ?? 5000;
+    const allSettled = Promise.allSettled(this.slotPromises.values());
+    let timedOut = false;
+    let forceTimeoutHandle: ReturnType<typeof setTimeout> | undefined;
+    const forceTimeout = new Promise<void>((resolve) => {
+      forceTimeoutHandle = setTimeout(() => {
+        timedOut = true;
+        resolve();
+      }, timeout);
+    });
+
+    await Promise.race([allSettled, forceTimeout]);
+    clearTimeout(forceTimeoutHandle);
+
+    if (!timedOut) {
+      // Natural completion — all slots settled cleanly.
+      await allSettled;
+    }
+    // Force-timeout path: slots are still running but aborted; null controller now
+    // so this.signal getter returns a pre-aborted signal for any in-flight code.
+
     this.slotPromises.clear();
     this.abortController = null;
   }
 
   private get signal(): AbortSignal {
-    if (!this.abortController) throw new Error("RunLoop is not running");
+    if (!this.abortController) {
+      // Controller was nulled after force-timeout; return a pre-aborted signal
+      // so any in-flight slot coroutines see aborted=true and exit cleanly.
+      const ac = new AbortController();
+      ac.abort();
+      return ac.signal;
+    }
     return this.abortController.signal;
   }
 
@@ -96,7 +123,7 @@ export class RunLoop {
     this.pendingClaims++;
     let claim: ClaimResponse;
     try {
-      claim = await defcon.claim({ workerId, role, flow });
+      claim = await defcon.claim({ workerId, role, flow }, { signal: this.signal });
     } finally {
       this.pendingClaims--;
     }
