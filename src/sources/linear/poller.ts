@@ -66,7 +66,8 @@ export class LinearPoller {
     // teamIds are sorted and joined to form a stable key.
     const groupKey = (w: LinearWatchConfig): string => {
       const state = w.filter.state ?? "";
-      const teams = (w.filter.teamIds ?? []).slice().sort().join(",");
+      const teamIds = Array.isArray(w.filter.teamIds) ? w.filter.teamIds : [];
+      const teams = teamIds.slice().sort().join(",");
       return `${state}\0${teams}`;
     };
 
@@ -79,10 +80,11 @@ export class LinearPoller {
     }
 
     for (const [, watches] of byGroup) {
-      const { state, teamIds } = watches[0].filter;
+      const { state } = watches[0].filter;
+      const teamIds = Array.isArray(watches[0].filter.teamIds) ? watches[0].filter.teamIds : [];
       const searchFilter: { stateName?: string; teamIds?: string[] } = {};
       if (state) searchFilter.stateName = state;
-      if (teamIds && teamIds.length > 0) searchFilter.teamIds = teamIds;
+      if (teamIds.length > 0) searchFilter.teamIds = teamIds;
 
       let issues: LinearSearchIssue[];
       try {
@@ -139,8 +141,9 @@ export class LinearPoller {
       if (!hasMatch) return false;
     }
 
-    if (filter.teamIds && filter.teamIds.length > 0) {
-      if (!filter.teamIds.includes(issue.team?.id ?? "")) return false;
+    const teamIds = Array.isArray(filter.teamIds) ? filter.teamIds : [];
+    if (teamIds.length > 0) {
+      if (!teamIds.includes(issue.team?.id ?? "")) return false;
     }
 
     return true;
