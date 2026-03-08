@@ -45,6 +45,11 @@ export class Ingestor {
 
     // Update the sentinel row to the real entityId.
     this.entityMapRepo.updateEntityId(event.sourceId, event.externalId, response.id);
+
+    // Fire the configured signal (e.g. "start") to advance the entity out of its initial state.
+    if (event.signal) {
+      await this.defcon.report({ entityId: response.id, signal: event.signal, artifacts: {} });
+    }
   }
 
   private async handleUpdate(event: IngestEvent): Promise<void> {

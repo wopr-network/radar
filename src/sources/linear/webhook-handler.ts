@@ -5,6 +5,7 @@ import { extractRepoFromDescription } from "./repo-extractor.js";
 export interface WebhookWatchConfig {
   sourceId: string;
   flowName: string;
+  signal?: string;
   filter: { state?: string; labels?: string[]; stateId?: string; labelIds?: string[] };
 }
 
@@ -59,11 +60,16 @@ export function handleLinearWebhook(payload: unknown, watch: WebhookWatchConfig)
   const description = data.description ?? null;
   const repo = extractRepoFromDescription(description);
 
+  // Map watch action to the flow signal that should fire after entity creation.
+  // e.g. "issue.started" → "start" fires the backlog→architecting transition.
+  const signal = watch.signal ?? undefined;
+
   return {
     sourceId: watch.sourceId,
     externalId: data.id,
     type: "new",
     flowName: watch.flowName,
+    signal,
     payload: {
       refs: {
         linear: {
