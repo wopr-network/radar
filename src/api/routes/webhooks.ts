@@ -1,32 +1,44 @@
-import { getSignatureHeader, verifyWebhookSignature } from "../hmac.js";
+import type { IngestEvent } from "../../ingestion/types.js";
+import type { SourceAdapterRegistry } from "../../sources/adapter.js";
 import type { Router } from "../router.js";
-import type { SourceRepo } from "../types.js";
+import type { SourceRepo, WatchRepo } from "../types.js";
 
 export function registerWebhookRoutes(
   router: Router,
   sourceRepo: SourceRepo,
-  onWebhook: (sourceId: string, payload: unknown) => Promise<void>,
+  watchRepo: WatchRepo,
+  adapterRegistry: SourceAdapterRegistry,
+  onWebhook: (sourceId: string, event: IngestEvent) => Promise<void>,
 ): void {
   router.add("POST", "/webhooks/:sourceId", async (ctx) => {
     const source = await sourceRepo.findById(ctx.params.sourceId);
     if (!source) return { status: 401, body: { error: "Unauthorized" } };
     if (!source.enabled) return { status: 401, body: { error: "Unauthorized" } };
 
-    const secret =
-      typeof source.config.secret === "string" && source.config.secret.length > 0 ? source.config.secret : undefined;
+    const adapter = adapterRegistry.get(source.type);
+    if (!adapter) return { status: 400, body: { error: "No adapter registered for source" } };
 
-    if (secret) {
-      const headerName = getSignatureHeader(source);
-      const headerValue = ctx.headers[headerName];
-      const sig = Array.isArray(headerValue) ? headerValue[0] : headerValue;
+    let sigResult: { valid: boolean; error?: string };
+    try {
+      sigResult = adapter.verifySignature(ctx.rawBody, source, ctx.headers);
+    } catch {
+      return { status: 400, body: { error: "Signature verification failed" } };
+    }
+    if (!sigResult.valid) return { status: 401, body: { error: "Unauthorized" } };
 
-      const result = verifyWebhookSignature(ctx.rawBody, secret, sig);
-      if (!result.valid) {
-        return { status: 401, body: { error: "Unauthorized" } };
-      }
+    const watches = await watchRepo.findBySourceId(source.id);
+    let event: import("../../ingestion/types.js").IngestEvent | null;
+    try {
+      event = adapter.parseEvent(ctx.body, source, watches);
+    } catch {
+      return { status: 400, body: { error: "Failed to parse event" } };
     }
 
-    await onWebhook(ctx.params.sourceId, ctx.body);
-    return { status: 200, body: { accepted: true } };
+    if (event !== null && event !== undefined) {
+      await onWebhook(ctx.params.sourceId, event);
+      return { status: 200, body: { accepted: true } };
+    }
+
+    return { status: 200, body: { accepted: false } };
   });
 }

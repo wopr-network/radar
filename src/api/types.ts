@@ -1,5 +1,7 @@
 import type { DefconClient } from "../defcon/index.js";
+import type { IngestEvent } from "../ingestion/types.js";
 import type { Pool } from "../pool/index.js";
+import type { SourceAdapterRegistry } from "../sources/adapter.js";
 
 export interface RouteParams {
   [key: string]: string;
@@ -34,7 +36,8 @@ export interface AppDeps {
   workerRepo: WorkerRepo;
   pool: Pool;
   defconClient: DefconClient;
-  onWebhook: (sourceId: string, payload: unknown) => Promise<void>;
+  adapterRegistry: SourceAdapterRegistry;
+  onWebhook: (sourceId: string, event: IngestEvent) => Promise<void>;
 }
 
 export interface SourceRepo {

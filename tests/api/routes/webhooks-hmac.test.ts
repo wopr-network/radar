@@ -2,7 +2,10 @@ import { createHmac } from "node:crypto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Router } from "../../../src/api/router.js";
 import { registerWebhookRoutes } from "../../../src/api/routes/webhooks.js";
-import type { Source, SourceRepo } from "../../../src/api/types.js";
+import type { Source, SourceRepo, Watch, WatchRepo } from "../../../src/api/types.js";
+import { SourceAdapterRegistry } from "../../../src/sources/index.js";
+import type { SourceAdapter } from "../../../src/sources/adapter.js";
+import { getSignatureHeader, verifyWebhookSignature } from "../../../src/api/hmac.js";
 
 function sign(body: string, secret: string): string {
   return "sha256=" + createHmac("sha256", secret).update(body).digest("hex");
@@ -29,6 +32,65 @@ function makeSourceRepo(sources: Source[]): SourceRepo {
   };
 }
 
+function makeWatchRepo(): WatchRepo {
+  const defaultWatch: Watch = {
+    id: "w1",
+    source_id: "any",
+    name: "default",
+    event_type: "issue.unstarted",
+    filter: {},
+    action_config: { flowName: "default" },
+    enabled: true,
+    created_at: 0,
+    updated_at: 0,
+  };
+  return {
+    async findBySourceId() {
+      return [defaultWatch];
+    },
+    async findById() {
+      return undefined;
+    },
+    async create() {
+      return {} as Watch;
+    },
+    async update() {
+      return undefined;
+    },
+    async delete() {
+      return false;
+    },
+  };
+}
+
+function makeHmacAdapter(type: string): SourceAdapter {
+  return {
+    type,
+    parseEvent(payload: unknown, source: Source) {
+      const p = payload as Record<string, unknown>;
+      const externalId = typeof p?.id === "string" ? p.id : `${source.id}-event`;
+      return { sourceId: source.id, externalId, type: "new", flowName: "default", payload: p };
+    },
+    verifySignature(rawBody, source, headers) {
+      const secret =
+        typeof source.config.secret === "string" && source.config.secret.length > 0 ? source.config.secret : undefined;
+      if (!secret) return { valid: true };
+      const headerName = getSignatureHeader(source);
+      const headerValue = headers[headerName];
+      const sig = Array.isArray(headerValue) ? headerValue[0] : headerValue;
+      return verifyWebhookSignature(rawBody, secret, sig);
+    },
+  };
+}
+
+function makeAdapterRegistry(): SourceAdapterRegistry {
+  const registry = new SourceAdapterRegistry();
+  registry.register(makeHmacAdapter("github"));
+  registry.register(makeHmacAdapter("linear"));
+  registry.register(makeHmacAdapter("webhook"));
+  return registry;
+}
+
 describe("Webhook HMAC verification", () => {
   const secret = "webhook-secret-123";
   let router: Router;
@@ -46,7 +108,7 @@ describe("Webhook HMAC verification", () => {
       created_at: 0,
       updated_at: 0,
     };
-    registerWebhookRoutes(router, makeSourceRepo([source]), onWebhook);
+    registerWebhookRoutes(router, makeSourceRepo([source]), makeWatchRepo(), makeAdapterRegistry(), onWebhook);
   });
 
   it("accepts valid HMAC signature", async () => {
@@ -86,7 +148,7 @@ describe("Webhook HMAC verification", () => {
       created_at: 0,
       updated_at: 0,
     };
-    registerWebhookRoutes(router2, makeSourceRepo([source]), onWebhook);
+    registerWebhookRoutes(router2, makeSourceRepo([source]), makeWatchRepo(), makeAdapterRegistry(), onWebhook);
     const body = JSON.stringify({ event: "push" });
     const result = await router2.handle("POST", "/webhooks/src-nosecret", body, new URLSearchParams(), {});
     expect(result.status).toBe(200);
@@ -104,7 +166,7 @@ describe("Webhook HMAC verification", () => {
       created_at: 0,
       updated_at: 0,
     };
-    registerWebhookRoutes(router2, makeSourceRepo([source]), onWebhook);
+    registerWebhookRoutes(router2, makeSourceRepo([source]), makeWatchRepo(), makeAdapterRegistry(), onWebhook);
     const body = JSON.stringify({ event: "push" });
     // Empty string secret must not allow unsigned payloads through
     const result = await router2.handle("POST", "/webhooks/src-emptystr", body, new URLSearchParams(), {});
@@ -134,7 +196,7 @@ describe("Webhook HMAC verification", () => {
       created_at: 0,
       updated_at: 0,
     };
-    registerWebhookRoutes(router2, makeSourceRepo([source]), onWebhook);
+    registerWebhookRoutes(router2, makeSourceRepo([source]), makeWatchRepo(), makeAdapterRegistry(), onWebhook);
     const body = JSON.stringify({ action: "update", type: "Issue" });
     const hmac = createHmac("sha256", linearSecret).update(body).digest("hex");
     const result = await router2.handle("POST", "/webhooks/src-linear", body, new URLSearchParams(), {
