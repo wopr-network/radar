@@ -10,49 +10,49 @@ describe("parseSignal", () => {
   });
 
   it("extracts pr_created signal with URL and number", () => {
-    const output = "PR created: https://github.com/wopr-network/norad/pull/42";
+    const output = "PR created: https://github.com/wopr-network/radar/pull/42";
     const result = parseSignal(output);
     expect(result.signal).toBe("pr_created");
     expect(result.artifacts).toEqual({
-      prUrl: "https://github.com/wopr-network/norad/pull/42",
+      prUrl: "https://github.com/wopr-network/radar/pull/42",
       prNumber: 42,
     });
   });
 
   it("extracts clean signal", () => {
-    const output = "CLEAN: https://github.com/wopr-network/norad/pull/42";
+    const output = "CLEAN: https://github.com/wopr-network/radar/pull/42";
     const result = parseSignal(output);
     expect(result.signal).toBe("clean");
     expect(result.artifacts).toEqual({
-      url: "https://github.com/wopr-network/norad/pull/42",
+      url: "https://github.com/wopr-network/radar/pull/42",
     });
   });
 
   it("extracts issues signal with findings", () => {
-    const output = "ISSUES: https://github.com/wopr-network/norad/pull/42 — unused import; missing test";
+    const output = "ISSUES: https://github.com/wopr-network/radar/pull/42 — unused import; missing test";
     const result = parseSignal(output);
     expect(result.signal).toBe("issues");
     expect(result.artifacts).toEqual({
-      url: "https://github.com/wopr-network/norad/pull/42",
+      url: "https://github.com/wopr-network/radar/pull/42",
       reviewFindings: ["unused import", "missing test"],
     });
   });
 
   it("extracts fixes_pushed signal", () => {
-    const output = "Fixes pushed: https://github.com/wopr-network/norad/pull/42";
+    const output = "Fixes pushed: https://github.com/wopr-network/radar/pull/42";
     const result = parseSignal(output);
     expect(result.signal).toBe("fixes_pushed");
     expect(result.artifacts).toEqual({
-      url: "https://github.com/wopr-network/norad/pull/42",
+      url: "https://github.com/wopr-network/radar/pull/42",
     });
   });
 
   it("extracts merged signal", () => {
-    const output = "Merged: https://github.com/wopr-network/norad/pull/42";
+    const output = "Merged: https://github.com/wopr-network/radar/pull/42";
     const result = parseSignal(output);
     expect(result.signal).toBe("merged");
     expect(result.artifacts).toEqual({
-      url: "https://github.com/wopr-network/norad/pull/42",
+      url: "https://github.com/wopr-network/radar/pull/42",
     });
   });
 

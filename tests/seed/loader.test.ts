@@ -11,7 +11,7 @@ function makeMockDb(rawDb: InstanceType<typeof Database>) {
 }
 
 function tmpSeed(content: string): string {
-  const dir = mkdtempSync(join(tmpdir(), "norad-seed-"));
+  const dir = mkdtempSync(join(tmpdir(), "radar-seed-"));
   const path = join(dir, "seed.json");
   writeFileSync(path, content);
   return path;

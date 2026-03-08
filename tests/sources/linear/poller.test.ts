@@ -40,7 +40,7 @@ describe("LinearPoller", () => {
       id: "lin-uuid-1",
       identifier: "WOP-100",
       title: "Add feature X",
-      description: "**Repo:** wopr-network/norad\n\nDetails",
+      description: "**Repo:** wopr-network/radar\n\nDetails",
       state: { type: "unstarted", name: "Todo" },
       labels: [{ name: "defcon" }],
     };
@@ -75,9 +75,9 @@ describe("LinearPoller", () => {
             id: "lin-uuid-1",
             key: "WOP-100",
             title: "Add feature X",
-            description: "**Repo:** wopr-network/norad\n\nDetails",
+            description: "**Repo:** wopr-network/radar\n\nDetails",
           },
-          github: { repo: "wopr-network/norad" },
+          github: { repo: "wopr-network/radar" },
         },
       },
     });
@@ -88,7 +88,7 @@ describe("LinearPoller", () => {
       id: "lin-uuid-1",
       identifier: "WOP-100",
       title: "Already tracked",
-      description: "**Repo:** wopr-network/norad",
+      description: "**Repo:** wopr-network/radar",
       state: { type: "unstarted", name: "Todo" },
       labels: [{ name: "defcon" }],
     };
@@ -117,7 +117,7 @@ describe("LinearPoller", () => {
       id: "lin-uuid-1",
       identifier: "WOP-100",
       title: "Wrong label",
-      description: "**Repo:** wopr-network/norad",
+      description: "**Repo:** wopr-network/radar",
       state: { type: "unstarted", name: "Todo" },
       labels: [{ name: "unrelated" }],
     };

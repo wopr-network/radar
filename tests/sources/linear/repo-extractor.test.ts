@@ -3,8 +3,8 @@ import { extractRepoFromDescription } from "../../../src/sources/linear/repo-ext
 
 describe("extractRepoFromDescription", () => {
   it("extracts repo from standard format", () => {
-    const desc = "**Repo:** wopr-network/norad\n\nSome description here";
-    expect(extractRepoFromDescription(desc)).toBe("wopr-network/norad");
+    const desc = "**Repo:** wopr-network/radar\n\nSome description here";
+    expect(extractRepoFromDescription(desc)).toBe("wopr-network/radar");
   });
 
   it("extracts repo from description with extra whitespace", () => {

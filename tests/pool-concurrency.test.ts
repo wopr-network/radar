@@ -27,7 +27,7 @@ describe("Pool concurrency tracking", () => {
     pool.allocate("s3", "w3", "e3", "p3", "wopr-changeset", "wopr-network/defcon");
     expect(pool.activeCountByRepo("wopr-changeset", "wopr-network/wopr")).toBe(2);
     expect(pool.activeCountByRepo("wopr-changeset", "wopr-network/defcon")).toBe(1);
-    expect(pool.activeCountByRepo("wopr-changeset", "wopr-network/norad")).toBe(0);
+    expect(pool.activeCountByRepo("wopr-changeset", "wopr-network/radar")).toBe(0);
   });
 
   it("counts decrease after release", () => {

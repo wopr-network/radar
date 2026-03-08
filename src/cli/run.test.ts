@@ -10,12 +10,12 @@ function makeProgram() {
   return program;
 }
 
-describe("norad run CLI parsing", () => {
+describe("radar run CLI parsing", () => {
   it("parses all options", () => {
     const program = makeProgram();
     program.parse([
       "node",
-      "norad",
+      "radar",
       "run",
       "--workers",
       "8",
@@ -26,7 +26,7 @@ describe("norad run CLI parsing", () => {
       "--flow",
       "wopr-changeset",
       "--seed",
-      "seeds/norad.json",
+      "seeds/radar.json",
       "--defcon-url",
       "http://defcon:3000",
     ]);
@@ -35,13 +35,13 @@ describe("norad run CLI parsing", () => {
     expect(opts.role).toBe("engineering");
     expect(opts.worker).toBe("claude-code");
     expect(opts.flow).toBe("wopr-changeset");
-    expect(opts.seed).toBe("seeds/norad.json");
+    expect(opts.seed).toBe("seeds/radar.json");
     expect(opts.defconUrl).toBe("http://defcon:3000");
   });
 
   it("uses default defcon-url when not specified", () => {
     const program = makeProgram();
-    program.parse(["node", "norad", "run", "-w", "4", "-r", "devops"]);
+    program.parse(["node", "radar", "run", "-w", "4", "-r", "devops"]);
     const opts = program.commands[0].opts();
     expect(opts.defconUrl).toBe("http://localhost:3000");
   });
@@ -49,14 +49,14 @@ describe("norad run CLI parsing", () => {
   it("errors when --workers is missing", () => {
     const program = makeProgram();
     expect(() => {
-      program.parse(["node", "norad", "run", "-r", "qa"]);
+      program.parse(["node", "radar", "run", "-r", "qa"]);
     }).toThrow();
   });
 
   it("errors when --role is missing", () => {
     const program = makeProgram();
     expect(() => {
-      program.parse(["node", "norad", "run", "-w", "4"]);
+      program.parse(["node", "radar", "run", "-w", "4"]);
     }).toThrow();
   });
 
@@ -69,7 +69,7 @@ describe("norad run CLI parsing", () => {
     const program = buildProgram(); // use real action so validation runs
     program.exitOverride();
     try {
-      await expect(program.parseAsync(["node", "norad", "run", "-w", "foo", "-r", "engineering"])).rejects.toThrow(
+      await expect(program.parseAsync(["node", "radar", "run", "-w", "foo", "-r", "engineering"])).rejects.toThrow(
         "process.exit called",
       );
       expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("--workers must be a positive integer"));
@@ -83,14 +83,14 @@ describe("norad run CLI parsing", () => {
 describe("port validation", () => {
   it("accepts valid port number", () => {
     const program = makeProgram();
-    program.parse(["node", "norad", "run", "-w", "1", "-r", "engineering", "--port", "9090"]);
+    program.parse(["node", "radar", "run", "-w", "1", "-r", "engineering", "--port", "9090"]);
     const opts = program.commands[0].opts();
     expect(opts.port).toBe(9090);
   });
 
   it("uses default port 8080 when not specified", () => {
     const program = makeProgram();
-    program.parse(["node", "norad", "run", "-w", "1", "-r", "engineering"]);
+    program.parse(["node", "radar", "run", "-w", "1", "-r", "engineering"]);
     const opts = program.commands[0].opts();
     expect(opts.port).toBe(8080);
   });
@@ -105,7 +105,7 @@ describe("port validation", () => {
     program.exitOverride();
     try {
       await expect(
-        program.parseAsync(["node", "norad", "run", "-w", "1", "-r", "engineering", "--port", "foo"]),
+        program.parseAsync(["node", "radar", "run", "-w", "1", "-r", "engineering", "--port", "foo"]),
       ).rejects.toThrow("process.exit called");
       expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("Invalid port"));
     } finally {
@@ -124,7 +124,7 @@ describe("port validation", () => {
     program.exitOverride();
     try {
       await expect(
-        program.parseAsync(["node", "norad", "run", "-w", "1", "-r", "engineering", "--port", "0"]),
+        program.parseAsync(["node", "radar", "run", "-w", "1", "-r", "engineering", "--port", "0"]),
       ).rejects.toThrow("process.exit called");
       expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("Invalid port"));
     } finally {
@@ -143,7 +143,7 @@ describe("port validation", () => {
     program.exitOverride();
     try {
       await expect(
-        program.parseAsync(["node", "norad", "run", "-w", "1", "-r", "engineering", "--port", "99999"]),
+        program.parseAsync(["node", "radar", "run", "-w", "1", "-r", "engineering", "--port", "99999"]),
       ).rejects.toThrow();
     } finally {
       exitSpy.mockRestore();
@@ -156,7 +156,7 @@ describe("role validation", () => {
   it("accepts valid disciplines", () => {
     for (const role of ["engineering", "devops", "qa", "security"]) {
       const program = makeProgram();
-      program.parse(["node", "norad", "run", "-w", "1", "-r", role]);
+      program.parse(["node", "radar", "run", "-w", "1", "-r", role]);
       expect(program.commands[0].opts().role).toBe(role);
     }
   });
@@ -170,7 +170,7 @@ describe("role validation", () => {
     const program = buildProgram(); // use real action so validation runs
     program.exitOverride();
     try {
-      await expect(program.parseAsync(["node", "norad", "run", "-w", "1", "-r", "hacker"])).rejects.toThrow(
+      await expect(program.parseAsync(["node", "radar", "run", "-w", "1", "-r", "hacker"])).rejects.toThrow(
         "process.exit called",
       );
       expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("invalid role"));

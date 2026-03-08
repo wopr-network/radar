@@ -1,12 +1,12 @@
 # Signal Format
 
-How claude agents communicate outcomes back to NORAD.
+How claude agents communicate outcomes back to RADAR.
 
 ---
 
 ## Overview
 
-When claude finishes processing an entity, NORAD reads the last 200 lines of claude's stdout and scans them (from the end) for a recognized signal phrase. The signal phrase determines what gets reported to DEFCON, which advances the entity to the next state.
+When claude finishes processing an entity, RADAR reads the last 200 lines of claude's stdout and scans them (from the end) for a recognized signal phrase. The signal phrase determines what gets reported to DEFCON, which advances the entity to the next state.
 
 **There is no structured output required.** Claude writes normal prose. The signal parser looks for specific phrases anywhere in the output. Everything else is ignored.
 
@@ -159,9 +159,9 @@ ISSUES: https://github.com/wopr-network/wopr/pull/456 — test failure in auth.t
 
 ## What Happens on Unknown Signal
 
-If no recognized signal is found and claude exits with a non-zero code, NORAD reports `crash` to DEFCON. The entity is re-queued with a crash artifact and the gate failure prompt (if configured).
+If no recognized signal is found and claude exits with a non-zero code, RADAR reports `crash` to DEFCON. The entity is re-queued with a crash artifact and the gate failure prompt (if configured).
 
-If claude exits 0 but no signal is found, NORAD also reports `crash`. **Always end with a signal phrase.**
+If claude exits 0 but no signal is found, RADAR also reports `crash`. **Always end with a signal phrase.**
 
 ---
 

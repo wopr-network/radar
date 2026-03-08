@@ -1,5 +1,5 @@
 import { and, eq } from "drizzle-orm";
-import type { NoradDb } from "../index.js";
+import type { RadarDb } from "../index.js";
 import { entityMap } from "../schema.js";
 
 export interface IEntityMapRepository {
@@ -11,7 +11,7 @@ export interface IEntityMapRepository {
 }
 
 export class DrizzleEntityMapRepository implements IEntityMapRepository {
-  constructor(private db: NoradDb) {}
+  constructor(private db: RadarDb) {}
 
   findEntityId(sourceId: string, externalId: string): string | undefined {
     const row = this.db

@@ -1,5 +1,5 @@
 import { desc, eq } from "drizzle-orm";
-import type { NoradDb } from "../index.js";
+import type { RadarDb } from "../index.js";
 import { eventLog } from "../schema.js";
 
 export interface AppendEventInput {
@@ -33,7 +33,7 @@ function toRow(raw: typeof eventLog.$inferSelect): EventLogRow {
 }
 
 export class EventLogRepo {
-  constructor(private db: NoradDb) {}
+  constructor(private db: RadarDb) {}
 
   append(input: AppendEventInput): EventLogRow {
     const id = crypto.randomUUID();

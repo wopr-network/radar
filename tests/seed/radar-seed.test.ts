@@ -7,8 +7,8 @@ import { SeedFileSchema } from "../../src/seed/types.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-describe("seeds/norad.json", () => {
-  const seedPath = resolve(__dirname, "../../seeds/norad.json");
+describe("seeds/radar.json", () => {
+  const seedPath = resolve(__dirname, "../../seeds/radar.json");
 
   it("exists and is valid JSON", () => {
     const raw = readFileSync(seedPath, "utf-8");
@@ -39,7 +39,7 @@ describe("seeds/norad.json", () => {
     const parsed = JSON.parse(raw);
     const expectedLabels = [
       "defcon",
-      "norad",
+      "radar",
       "wopr-platform",
       "wopr-platform-ui",
       "plugin-discord",

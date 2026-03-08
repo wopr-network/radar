@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { applySchema } from "../../src/db/index.js";
-import type { NoradDb } from "../../src/db/index.js";
+import type { RadarDb } from "../../src/db/index.js";
 import { WorkerRepo } from "../../src/db/repos/worker-repo.js";
 
 describe("WorkerRepo", () => {
-  let db: NoradDb;
+  let db: RadarDb;
   let repo: WorkerRepo;
 
   beforeEach(() => {

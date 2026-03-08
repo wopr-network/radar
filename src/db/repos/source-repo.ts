@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import type { NoradDb } from "../index.js";
+import type { RadarDb } from "../index.js";
 import { sources } from "../schema.js";
 
 export interface CreateSourceInput {
@@ -39,7 +39,7 @@ function toRow(raw: typeof sources.$inferSelect): SourceRow {
 }
 
 export class SourceRepo {
-  constructor(private db: NoradDb) {}
+  constructor(private db: RadarDb) {}
 
   create(input: CreateSourceInput): SourceRow {
     const now = Math.floor(Date.now() / 1000);

@@ -1,34 +1,34 @@
-# NORAD Onboarding
+# RADAR Onboarding
 
-> For new contributors, operators, and AI agents setting up or debugging the NORAD service.
+> For new contributors, operators, and AI agents setting up or debugging the RADAR service.
 
 ---
 
-## What NORAD Is
+## What RADAR Is
 
-NORAD is the worker adapter that sits between external event sources (Linear, GitHub) and DEFCON. It does two things:
+RADAR is the worker adapter that sits between external event sources (Linear, GitHub) and DEFCON. It does two things:
 
 1. **Ingestion** — watches Linear/GitHub webhooks and creates entities in DEFCON when issues are assigned
 2. **Dispatch** — runs worker slots that claim entities from DEFCON and spawn `claude` to process them
 
-NORAD is stateless between restarts (its SQLite DB tracks ingestion dedup only). All pipeline state lives in DEFCON.
+RADAR is stateless between restarts (its SQLite DB tracks ingestion dedup only). All pipeline state lives in DEFCON.
 
 ---
 
 ## Quick Start (Docker)
 
-### 1. Create a `Dockerfile.norad`
+### 1. Create a `Dockerfile.radar`
 
 ```dockerfile
 FROM node:24-alpine
-RUN npm install -g @wopr-network/norad@latest @anthropic-ai/claude-code
+RUN npm install -g @wopr-network/radar@latest @anthropic-ai/claude-code
 RUN apk add --no-cache git
-ENV CLI=/usr/local/lib/node_modules/@wopr-network/norad/dist/cli/index.js
+ENV CLI=/usr/local/lib/node_modules/@wopr-network/radar/dist/cli/index.js
 WORKDIR /app
-CMD sh -c "mkdir -p /root/.claude && cp /claude-host/.credentials.json /root/.claude/.credentials.json && node $CLI seed /app/seed/norad.json --defcon-url $DEFCON_URL --db $NORAD_DB_PATH && node $CLI run --workers 4 --role engineering --defcon-url $DEFCON_URL --seed /app/seed/norad.json"
+CMD sh -c "mkdir -p /root/.claude && cp /claude-host/.credentials.json /root/.claude/.credentials.json && node $CLI seed /app/seed/radar.json --defcon-url $DEFCON_URL --db $RADAR_DB_PATH && node $CLI run --workers 4 --role engineering --defcon-url $DEFCON_URL --seed /app/seed/radar.json"
 ```
 
-**Why `@anthropic-ai/claude-code`?** NORAD's dispatcher spawns `claude` as a subprocess. Without the package installed globally, the dispatch fails with `spawn claude ENOENT`.
+**Why `@anthropic-ai/claude-code`?** RADAR's dispatcher spawns `claude` as a subprocess. Without the package installed globally, the dispatch fails with `spawn claude ENOENT`.
 
 **Why `git`?** Claude agents run git commands inside worktrees. They need git in PATH.
 
@@ -36,7 +36,7 @@ CMD sh -c "mkdir -p /root/.claude && cp /claude-host/.credentials.json /root/.cl
 
 ### 2. Set up credentials
 
-NORAD needs Claude credentials to dispatch agents. Mount `~/.claude` as a read-only directory and copy the credentials file in at startup (as shown in the Dockerfile above):
+RADAR needs Claude credentials to dispatch agents. Mount `~/.claude` as a read-only directory and copy the credentials file in at startup (as shown in the Dockerfile above):
 
 ```yaml
 volumes:
@@ -65,14 +65,14 @@ services:
     ports: ["3001:3001"]
     networks: [pipeline]
 
-  norad:
-    build: { dockerfile: Dockerfile.norad }
+  radar:
+    build: { dockerfile: Dockerfile.radar }
     volumes:
-      - norad-data:/data
+      - radar-data:/data
       - ./seed:/app/seed:ro
       - ~/.claude:/claude-host:ro
     environment:
-      NORAD_DB_PATH: /data/norad.db
+      RADAR_DB_PATH: /data/radar.db
       DEFCON_URL: http://defcon:3001
       DEFCON_WORKER_TOKEN: ${DEFCON_WORKER_TOKEN}
       DEFCON_ADMIN_TOKEN: ${DEFCON_ADMIN_TOKEN}
@@ -85,7 +85,7 @@ services:
 
 ## How the Run Loop Works
 
-When `norad run` starts, it spawns N worker slots (default 4). Each slot loops independently:
+When `radar run` starts, it spawns N worker slots (default 4). Each slot loops independently:
 
 ```
 slot starts
@@ -101,13 +101,13 @@ slot starts
 
 ### What "healthy" looks like
 
-NORAD logs are intentionally sparse. Startup:
+RADAR logs are intentionally sparse. Startup:
 
 ```
-[norad] Seeded: 1 flows, 1 sources, 1 watches
-[norad] Seed loaded: 1 flows, 1 sources, 1 watches
-[norad] API server listening on port 8080
-[norad] Starting 4 worker slots — role: engineering
+[radar] Seeded: 1 flows, 1 sources, 1 watches
+[radar] Seed loaded: 1 flows, 1 sources, 1 watches
+[radar] API server listening on port 8080
+[radar] Starting 4 worker slots — role: engineering
 ```
 
 Then silence. **Silence is normal.** The run loop does not log successful claims or dispatches. Only errors appear.
@@ -115,7 +115,7 @@ Then silence. **Silence is normal.** The run loop does not log successful claims
 To confirm a slot is working, check:
 
 ```bash
-# Inside the norad container
+# Inside the radar container
 ps aux | grep claude
 # claude process appears when a slot is dispatching
 
@@ -136,19 +136,19 @@ On a fresh container, all 4 slots immediately call `/api/claim`. If DEFCON has n
 
 1. Check `pendingClaims` in DEFCON status. If 0, the entity's `onEnter` hasn't finished — check the entity's `artifacts.onEnter_error`.
 2. If `pendingClaims: 1`, the slots are sleeping. Wait for the 30s sleep to expire.
-3. If still no claim after 90s, check for errors in norad logs:
+3. If still no claim after 90s, check for errors in radar logs:
    ```bash
-   docker compose logs norad
+   docker compose logs radar
    ```
    `slot claim error:` lines indicate the defcon HTTP call is failing.
 
 ### `spawn claude ENOENT`
 
-`@anthropic-ai/claude-code` is not installed. Rebuild the norad image:
+`@anthropic-ai/claude-code` is not installed. Rebuild the radar image:
 
 ```bash
-docker compose build --no-cache norad
-docker compose up -d norad
+docker compose build --no-cache radar
+docker compose up -d radar
 ```
 
 ### `401 Invalid authentication credentials`
@@ -159,10 +159,10 @@ The credentials in the container are expired or missing. On the host, run:
 claude /login
 ```
 
-Then restart the norad container:
+Then restart the radar container:
 
 ```bash
-docker compose restart norad
+docker compose restart radar
 ```
 
 The startup `cp` command will copy the fresh credentials.
@@ -176,8 +176,8 @@ The `~/.claude:/claude-host:ro` volume mount isn't working, or `.credentials.jso
 ls ~/.claude/.credentials.json
 
 # In container
-docker compose exec norad ls /claude-host/.credentials.json
-docker compose exec norad ls /root/.claude/.credentials.json
+docker compose exec radar ls /claude-host/.credentials.json
+docker compose exec radar ls /root/.claude/.credentials.json
 ```
 
 ### Claude runs but always crashes immediately
@@ -185,7 +185,7 @@ docker compose exec norad ls /root/.claude/.credentials.json
 Check claude's stderr output (it inherits the container's stderr):
 
 ```bash
-docker compose logs norad 2>&1 | grep -i "error\|failed\|crash"
+docker compose logs radar 2>&1 | grep -i "error\|failed\|crash"
 ```
 
 Common causes: expired credentials (see above), prompt template error, or hitting the context limit on a very large repo.
@@ -194,7 +194,7 @@ Common causes: expired credentials (see above), prompt template error, or hittin
 
 ## How claude Signals Back to DEFCON
 
-NORAD's dispatcher captures claude's stdout after the process exits. It scans the last 200 lines for a signal in this format:
+RADAR's dispatcher captures claude's stdout after the process exits. It scans the last 200 lines for a signal in this format:
 
 ```
 Signal: spec_ready
@@ -209,7 +209,7 @@ Agent prompts must end with a send-to-team-lead message containing the signal. E
 Then send to team-lead: "Spec ready: {{entity.refs.linear.key}}"
 ```
 
-NORAD's signal parser recognizes common patterns (`spec_ready`, `pr_created`, `clean`, `issues`, `crash`, etc.).
+RADAR's signal parser recognizes common patterns (`spec_ready`, `pr_created`, `clean`, `issues`, `crash`, etc.).
 
 ---
 
@@ -217,7 +217,7 @@ NORAD's signal parser recognizes common patterns (`spec_ready`, `pr_created`, `c
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `NORAD_DB_PATH` | yes | Path to SQLite database file |
+| `RADAR_DB_PATH` | yes | Path to SQLite database file |
 | `DEFCON_URL` | yes | Base URL of the DEFCON HTTP API |
 | `DEFCON_WORKER_TOKEN` | yes | Bearer token for claim/report calls |
 | `DEFCON_ADMIN_TOKEN` | yes | Bearer token for admin entity creation |
@@ -227,7 +227,7 @@ NORAD's signal parser recognizes common patterns (`spec_ready`, `pr_created`, `c
 
 ## Further Reading
 
-- [DEFCON onboarding](https://github.com/wopr-network/defcon/blob/main/docs/wopr/devops/onboarding.md) — how to set up the flow engine NORAD connects to
+- [DEFCON onboarding](https://github.com/wopr-network/defcon/blob/main/docs/wopr/devops/onboarding.md) — how to set up the flow engine RADAR connects to
 - [Run loop source](../src/run-loop/run-loop.ts) — the slot lifecycle in code
 - [Dispatcher source](../src/dispatcher/claude-code-dispatcher.ts) — how claude is spawned and its output parsed
-- [NORAD architecture design](./plans/2026-03-06-norad-architecture-design.md) — full system design
+- [RADAR architecture design](./plans/2026-03-06-radar-architecture-design.md) — full system design

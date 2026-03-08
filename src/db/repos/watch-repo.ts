@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import type { NoradDb } from "../index.js";
+import type { RadarDb } from "../index.js";
 import { watches } from "../schema.js";
 
 export interface CreateWatchInput {
@@ -46,7 +46,7 @@ function toRow(raw: typeof watches.$inferSelect): WatchRow {
 }
 
 export class WatchRepo {
-  constructor(private db: NoradDb) {}
+  constructor(private db: RadarDb) {}
 
   create(input: CreateWatchInput): WatchRow {
     const now = Math.floor(Date.now() / 1000);

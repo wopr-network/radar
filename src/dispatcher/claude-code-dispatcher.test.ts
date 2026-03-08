@@ -58,14 +58,14 @@ describe("ClaudeCodeDispatcher", () => {
   });
 
   it("returns pr_created with artifacts", async () => {
-    mockedSpawn.mockReturnValue(makeFakeProcess("PR created: https://github.com/wopr-network/norad/pull/99", 0));
+    mockedSpawn.mockReturnValue(makeFakeProcess("PR created: https://github.com/wopr-network/radar/pull/99", 0));
 
     const dispatcher = new ClaudeCodeDispatcher();
     const result = await dispatcher.dispatch("create pr", defaultOpts);
 
     expect(result.signal).toBe("pr_created");
     expect(result.artifacts).toEqual({
-      prUrl: "https://github.com/wopr-network/norad/pull/99",
+      prUrl: "https://github.com/wopr-network/radar/pull/99",
       prNumber: 99,
     });
   });

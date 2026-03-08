@@ -1,11 +1,11 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import type { NoradDb } from "../db/index.js";
+import type { RadarDb } from "../db/index.js";
 import { SeedFileSchema } from "./types.js";
 
 export interface LoadSeedDeps {
   defconUrl: string;
-  db: NoradDb;
+  db: RadarDb;
   adminToken?: string;
 }
 
@@ -34,7 +34,7 @@ export function expandEnvVars(raw: string): string {
   );
 }
 
-function ensureSeedTables(db: NoradDb): void {
+function ensureSeedTables(db: RadarDb): void {
   db.$client.exec(`
     CREATE TABLE IF NOT EXISTS seed_sources (
       id TEXT PRIMARY KEY,

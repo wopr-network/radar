@@ -123,11 +123,11 @@
       "filter": { "state": "Todo", "labels": ["defcon"] }
     },
     {
-      "id": "watch-linear-norad",
+      "id": "watch-linear-radar",
       "sourceId": "linear-wopr",
       "event": "issue.state_change",
       "flowName": "engineering",
-      "filter": { "state": "Todo", "labels": ["norad"] }
+      "filter": { "state": "Todo", "labels": ["radar"] }
     },
     {
       "id": "watch-linear-wopr-platform",
