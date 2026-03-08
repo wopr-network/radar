@@ -58,7 +58,6 @@ describe("HealthMonitor", () => {
     monitor.stop();
 
     expect(reportFn).toHaveBeenCalledWith({
-      workerId: "w1",
       entityId: "e1",
       signal: "fail",
       artifacts: { reason: "worker_timeout" },

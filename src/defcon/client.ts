@@ -36,12 +36,12 @@ export class DefconClient {
     return res.json() as Promise<ClaimResponse>;
   }
 
-  async createEntity(params: { flowName: string; payload: Record<string, unknown> }): Promise<CreateEntityResponse> {
+  async createEntity(params: { flowName: string; payload?: Record<string, unknown> }): Promise<CreateEntityResponse> {
     const signal = AbortSignal.timeout(30_000);
     const res = await fetch(`${this.url}/api/entities`, {
       method: "POST",
       headers: { "Content-Type": "application/json", ...this.authHeader },
-      // defcon expects `flow` (not `flowName`); payload is not supported by defcon REST
+      // defcon expects `flow` (not `flowName`); REST API does not accept payload
       body: JSON.stringify({ flow: params.flowName }),
       signal,
     });
@@ -52,7 +52,6 @@ export class DefconClient {
 
   async report(
     params: {
-      workerId: string;
       entityId: string;
       signal: string;
       artifacts?: Record<string, unknown>;
@@ -60,6 +59,7 @@ export class DefconClient {
     opts?: DefconRequestOptions,
   ): Promise<ReportResponse> {
     // flow.report blocks — no timeout applied
+    // workerId is not forwarded by the defcon REST report endpoint
     const body: Record<string, unknown> = { signal: params.signal };
     if (params.artifacts) body.artifacts = params.artifacts;
     const res = await fetch(`${this.url}/api/entities/${encodeURIComponent(params.entityId)}/report`, {

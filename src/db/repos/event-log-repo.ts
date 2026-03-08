@@ -60,6 +60,16 @@ export class EventLogRepo {
     return row ? toRow(row) : undefined;
   }
 
+  list(opts?: { limit?: number; offset?: number }): EventLogRow[] {
+    const query = this.db
+      .select()
+      .from(eventLog)
+      .orderBy(desc(eventLog.createdAt))
+      .limit(opts?.limit ?? -1)
+      .offset(opts?.offset ?? 0);
+    return query.all().map(toRow);
+  }
+
   queryBySource(sourceId: string, opts?: { limit?: number }): EventLogRow[] {
     const query = this.db
       .select()

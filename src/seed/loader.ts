@@ -56,7 +56,7 @@ function ensureSeedTables(db: NoradDb): void {
 // Keys that hold credentials — expanded only at use time, never persisted expanded.
 const SENSITIVE_KEYS = new Set(["token"]);
 
-function expandEnvVarsInValue(value: unknown, key?: string): unknown {
+export function expandEnvVarsInValue(value: unknown, key?: string): unknown {
   if (SENSITIVE_KEYS.has(key ?? "")) {
     // Leave sensitive fields as env-var references so they are never stored in plaintext.
     return value;

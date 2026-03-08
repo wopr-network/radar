@@ -63,7 +63,6 @@ describe("Ingestor", () => {
 
     expect(defcon.report).toHaveBeenCalledOnce();
     expect(defcon.report).toHaveBeenCalledWith({
-      workerId: "norad",
       entityId: "entity-abc",
       signal: "merged",
       artifacts: { sha: "abc123" },

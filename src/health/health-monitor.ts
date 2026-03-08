@@ -48,7 +48,6 @@ export class HealthMonitor {
       if (slot.entityId) {
         try {
           await this.defcon.report({
-            workerId: slot.workerId,
             entityId: slot.entityId,
             signal: "fail",
             artifacts: { reason: "worker_timeout" },
