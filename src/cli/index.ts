@@ -96,4 +96,29 @@ worker
     console.log(prompt);
   });
 
+program
+  .command("seed")
+  .description(
+    "Push seed file to DEFCON and local DB.\n" +
+      "  Expected JSON shape: { flows: Flow[], sources: Source[], watches: Watch[] }\n" +
+      "  where each Flow has { name, initialState, states, transitions, ... },\n" +
+      "  each Source has { id, type, token?, config? },\n" +
+      "  and each Watch has { id, sourceId, event, flowName, filter? }.",
+  )
+  .argument("<path>", "Path to the seed JSON file")
+  .option("--defcon-url <url>", "DEFCON server URL", "http://localhost:3000")
+  .requiredOption(
+    "--db <path>",
+    "Local SQLite database path (required — use a dedicated seed DB, not the live norad.db)",
+  )
+  .action(async (seedPath: string, opts: { defconUrl: string; db: string }) => {
+    const { runSeed } = await import("./seed-action.js");
+    try {
+      await runSeed({ seedPath, defconUrl: opts.defconUrl, db: opts.db });
+    } catch (err) {
+      console.error(`[norad] Seed failed: ${err instanceof Error ? err.message : err}`);
+      process.exit(1);
+    }
+  });
+
 program.parse();

@@ -1,11 +1,11 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import type Database from "better-sqlite3";
+import type { NoradDb } from "../db/index.js";
 import { SeedFileSchema } from "./types.js";
 
 export interface LoadSeedDeps {
   defconUrl: string;
-  db: Database.Database;
+  db: NoradDb;
 }
 
 export interface LoadSeedResult {
@@ -33,22 +33,22 @@ export function expandEnvVars(raw: string): string {
   );
 }
 
-function ensureTables(db: Database.Database): void {
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS sources (
+function ensureSeedTables(db: NoradDb): void {
+  db.$client.exec(`
+    CREATE TABLE IF NOT EXISTS seed_sources (
       id TEXT PRIMARY KEY,
       type TEXT NOT NULL,
       config TEXT NOT NULL
     )
   `);
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS watches (
+  db.$client.exec(`
+    CREATE TABLE IF NOT EXISTS seed_watches (
       id TEXT PRIMARY KEY,
       source_id TEXT NOT NULL,
       event TEXT NOT NULL,
       flow_name TEXT NOT NULL,
       filter TEXT,
-      FOREIGN KEY (source_id) REFERENCES sources(id)
+      FOREIGN KEY (source_id) REFERENCES seed_sources(id)
     )
   `);
 }
@@ -83,7 +83,7 @@ export async function loadSeed(seedPath: string, deps: LoadSeedDeps): Promise<Lo
   const json: unknown = expandEnvVarsInValue(JSON.parse(raw));
   const seed = SeedFileSchema.parse(json);
 
-  ensureTables(deps.db);
+  ensureSeedTables(deps.db);
 
   for (const flow of seed.flows) {
     // PUT /api/flows/:id is idempotent — creates the flow if absent, updates it if already present.
@@ -120,12 +120,14 @@ export async function loadSeed(seedPath: string, deps: LoadSeedDeps): Promise<Lo
     }
   }
 
-  const upsertSource = deps.db.prepare("INSERT OR REPLACE INTO sources (id, type, config) VALUES (?, ?, ?)");
-  const upsertWatch = deps.db.prepare(
-    "INSERT OR REPLACE INTO watches (id, source_id, event, flow_name, filter) VALUES (?, ?, ?, ?, ?)",
+  const upsertSource = deps.db.$client.prepare(
+    "INSERT OR REPLACE INTO seed_sources (id, type, config) VALUES (?, ?, ?)",
+  );
+  const upsertWatch = deps.db.$client.prepare(
+    "INSERT OR REPLACE INTO seed_watches (id, source_id, event, flow_name, filter) VALUES (?, ?, ?, ?, ?)",
   );
 
-  deps.db.transaction(() => {
+  deps.db.$client.transaction(() => {
     for (const source of seed.sources) {
       const { id, type, ...rest } = source;
       upsertSource.run(id, type, JSON.stringify(rest));

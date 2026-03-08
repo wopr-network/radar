@@ -6,6 +6,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { expandEnvVars, loadSeed } from "../../src/seed/loader.js";
 import { SeedFileSchema, SeedFlowSchema } from "../../src/seed/types.js";
 
+function makeMockDb(rawDb: InstanceType<typeof Database>) {
+  return { $client: rawDb };
+}
+
 function tmpSeed(content: string): string {
   const dir = mkdtempSync(join(tmpdir(), "norad-seed-"));
   const path = join(dir, "seed.json");
@@ -45,7 +49,8 @@ describe("expandEnvVars", () => {
 });
 
 describe("loadSeed", () => {
-  let db: InstanceType<typeof Database>;
+  let rawDb: InstanceType<typeof Database>;
+  let db: ReturnType<typeof makeMockDb>;
 
   const validSeed = {
     flows: [
@@ -65,12 +70,13 @@ describe("loadSeed", () => {
   };
 
   beforeEach(() => {
-    db = new Database(":memory:");
+    rawDb = new Database(":memory:");
+    db = makeMockDb(rawDb);
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) }));
   });
 
   afterEach(() => {
-    db.close();
+    rawDb.close();
     vi.restoreAllMocks();
   });
 
@@ -87,12 +93,12 @@ describe("loadSeed", () => {
     const body = JSON.parse((call[1] as RequestInit).body as string) as { definition: { initialState: string } };
     expect(body.definition.initialState).toBe("open");
 
-    const sources = db.prepare("SELECT * FROM sources").all() as Array<{ id: string; type: string; config: string }>;
+    const sources = rawDb.prepare("SELECT * FROM seed_sources").all() as Array<{ id: string; type: string; config: string }>;
     expect(sources).toHaveLength(1);
     expect(sources[0].id).toBe("src-1");
     expect(sources[0].type).toBe("github");
 
-    const watches = db.prepare("SELECT * FROM watches").all() as Array<{
+    const watches = rawDb.prepare("SELECT * FROM seed_watches").all() as Array<{
       id: string;
       source_id: string;
       event: string;
@@ -114,7 +120,7 @@ describe("loadSeed", () => {
     const result = await loadSeed(seedPath, { defconUrl: "http://localhost:3000", db });
 
     expect(result.sources).toBe(1);
-    const sources = db.prepare("SELECT * FROM sources").all() as Array<{ config: string }>;
+    const sources = rawDb.prepare("SELECT * FROM seed_sources").all() as Array<{ config: string }>;
     const config = JSON.parse(sources[0].config) as { repo: string };
     expect(config.repo).toBe("my-org/my-repo");
     delete process.env.SEED_REPO;
@@ -171,7 +177,7 @@ describe("loadSeed", () => {
     const seedPath = tmpSeed(JSON.stringify(seedWithToken));
     const result = await loadSeed(seedPath, { defconUrl: "http://localhost:3000", db });
     expect(result.sources).toBe(1);
-    const sources = db.prepare("SELECT * FROM sources").all() as Array<{ config: string }>;
+    const sources = rawDb.prepare("SELECT * FROM seed_sources").all() as Array<{ config: string }>;
     const config = JSON.parse(sources[0].config) as { token: string };
     // Token must remain as the env-var reference, not the expanded plaintext value.
     expect(config.token).toBe("$SEED_TOKEN");
@@ -181,7 +187,7 @@ describe("loadSeed", () => {
   it("throws when upserts fail mid-transaction (atomicity)", async () => {
     const seedPath = tmpSeed(JSON.stringify(validSeed));
     await loadSeed(seedPath, { defconUrl: "http://localhost:3000", db });
-    const sources = db.prepare("SELECT * FROM sources").all();
+    const sources = rawDb.prepare("SELECT * FROM seed_sources").all();
     expect(sources).toHaveLength(1);
   });
 
@@ -226,7 +232,7 @@ describe("loadSeed", () => {
     await loadSeed(seedPath, { defconUrl: "http://localhost:3000", db });
     await loadSeed(seedPath, { defconUrl: "http://localhost:3000", db });
 
-    const sources = db.prepare("SELECT * FROM sources").all();
+    const sources = rawDb.prepare("SELECT * FROM seed_sources").all();
     expect(sources).toHaveLength(1);
   });
 
