@@ -66,6 +66,7 @@ function initSqlite(path: string): InstanceType<typeof Database> {
       created_at INTEGER NOT NULL
     );
     CREATE INDEX IF NOT EXISTS entity_activity_entity_id_idx ON entity_activity (entity_id);
+    CREATE UNIQUE INDEX IF NOT EXISTS entity_activity_entity_seq_uniq ON entity_activity (entity_id, seq);
   `);
   return sqlite;
 }
