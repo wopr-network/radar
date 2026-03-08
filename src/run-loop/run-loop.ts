@@ -130,9 +130,14 @@ export class RunLoop {
     }
 
     if (!isWorkClaim(claim)) {
+      console.log(`[radar] slot ${slotId} no work, check_back in ${claim.retry_after_ms}ms`);
       await sleep(claim.retry_after_ms, this.signal);
       return;
     }
+
+    console.log(
+      `[radar] slot ${slotId} claimed entity ${claim.entity_id} flow=${claim.flow ?? "none"} stage=${(claim as Record<string, unknown>).stage ?? "?"}`,
+    );
 
     const claimFlow = claim.flow;
     const claimRepo = extractRepoFromDescription(claim.prompt);
@@ -182,15 +187,18 @@ export class RunLoop {
           const heartbeatInterval = setInterval(() => {
             pool.heartbeat(slotId);
           }, this.pollIntervalMs);
+          console.log(`[radar] slot ${slotId} dispatching entity ${claim.entity_id} model=${modelTier}`);
           try {
             const result = await dispatcher.dispatch(currentPrompt, {
               modelTier,
               workerId,
               entityId: claim.entity_id,
             });
+            console.log(`[radar] slot ${slotId} dispatch done signal=${result.signal} exitCode=${result.exitCode}`);
             currentSignal = result.signal;
             currentArtifacts = result.artifacts;
           } catch (err) {
+            console.error(`[radar] slot ${slotId} dispatch threw:`, safeErrorMessage(err));
             currentSignal = "crash";
             currentArtifacts = { error: safeErrorMessage(err) };
           } finally {
@@ -214,6 +222,8 @@ export class RunLoop {
           }
           break;
         }
+
+        console.log(`[radar] slot ${slotId} report ack next_action=${response.next_action}`);
 
         if (response.next_action === "continue") {
           let history = "";

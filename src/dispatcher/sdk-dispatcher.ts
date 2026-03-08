@@ -23,6 +23,7 @@ export class SdkDispatcher implements Dispatcher {
     let lastText = "";
 
     try {
+      console.log(`[claude] [${slotId}] START entity=${entityId} model=${MODEL_MAP[modelTier]}`);
       this.activityRepo.insert({ entityId, slotId, type: "start", data: {} });
       for await (const message of query({
         prompt,
@@ -32,9 +33,12 @@ export class SdkDispatcher implements Dispatcher {
           allowedTools: ["Edit", "Read", "Write", "Bash", "Glob", "Grep"],
         },
       })) {
-        if (message.type === "assistant") {
+        if (message.type === "system") {
+          console.log(`[claude] [${slotId}] system subtype=${message.subtype}`);
+        } else if (message.type === "assistant") {
           for (const block of message.message.content) {
             if (block.type === "tool_use") {
+              console.log(`[claude] [${slotId}] tool_use ${block.name} ${JSON.stringify(block.input).slice(0, 120)}`);
               this.activityRepo.insert({
                 entityId,
                 slotId,
@@ -43,6 +47,7 @@ export class SdkDispatcher implements Dispatcher {
               });
             } else if (block.type === "text" && block.text) {
               lastText = block.text;
+              console.log(`[claude] [${slotId}] text "${block.text.slice(0, 200).replace(/\n/g, " ")}"`);
               this.activityRepo.insert({
                 entityId,
                 slotId,
@@ -54,6 +59,9 @@ export class SdkDispatcher implements Dispatcher {
         } else if (message.type === "result") {
           const costUsd = message.total_cost_usd;
           const subtype = message.subtype;
+          console.log(
+            `[claude] [${slotId}] RESULT subtype=${subtype} is_error=${message.is_error} stop_reason=${message.stop_reason} cost=$${costUsd?.toFixed(4) ?? "?"}`,
+          );
           this.activityRepo.insert({
             entityId,
             slotId,
@@ -66,20 +74,26 @@ export class SdkDispatcher implements Dispatcher {
           }
 
           const { signal, artifacts } = parseSignal(lastText);
+          console.log(`[claude] [${slotId}] parsed signal=${signal}`);
           return {
             signal,
             artifacts,
             exitCode: 0,
           };
+        } else {
+          console.log(`[claude] [${slotId}] msg type=${(message as { type: string }).type}`);
         }
       }
 
+      console.log(`[claude] [${slotId}] stream ended without result`);
       // Stream ended without a result message
       return { signal: "crash", artifacts: {}, exitCode: -1 };
     } catch (err) {
       if (controller.signal.aborted) {
+        console.log(`[claude] [${slotId}] TIMEOUT`);
         return { signal: "timeout", artifacts: {}, exitCode: -1 };
       }
+      console.error(`[claude] [${slotId}] ERROR`, err instanceof Error ? err.message : String(err));
       return {
         signal: "crash",
         artifacts: { error: err instanceof Error ? err.message : String(err) },
