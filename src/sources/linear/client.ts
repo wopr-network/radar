@@ -2,43 +2,40 @@ import type { LinearIssue, LinearIssueState, LinearRelation, LinearSearchIssue }
 
 const LINEAR_API_URL = "https://api.linear.app/graphql";
 
-const SEARCH_ISSUES_QUERY = `
-  query SearchIssues($stateName: String!, $first: Int, $after: String) {
-    issues(filter: { state: { name: { eq: $stateName } } }, first: $first, after: $after) {
-      nodes {
-        id
-        identifier
-        title
-        description
-        state { type name }
-        labels { nodes { name } }
-      }
-      pageInfo {
-        hasNextPage
-        endCursor
-      }
-    }
-  }
-`;
+function buildSearchQuery(filter: { stateName?: string; teamIds?: string[] }): string {
+  const hasState = filter.stateName !== undefined;
+  const hasTeams = filter.teamIds !== undefined && filter.teamIds.length > 0;
 
-const SEARCH_ALL_ISSUES_QUERY = `
-  query SearchAllIssues($first: Int, $after: String) {
-    issues(first: $first, after: $after) {
-      nodes {
-        id
-        identifier
-        title
-        description
-        state { type name }
-        labels { nodes { name } }
-      }
-      pageInfo {
-        hasNextPage
-        endCursor
+  const vars: string[] = ["$first: Int", "$after: String"];
+  if (hasState) vars.push("$stateName: String!");
+  if (hasTeams) vars.push("$teamIds: [ID!]!");
+
+  const filters: string[] = [];
+  if (hasState) filters.push("state: { name: { eq: $stateName } }");
+  if (hasTeams) filters.push("team: { id: { in: $teamIds } }");
+
+  const filterClause = filters.length > 0 ? `filter: { ${filters.join(", ")} }, ` : "";
+
+  return `
+    query SearchIssues(${vars.join(", ")}) {
+      issues(${filterClause}first: $first, after: $after) {
+        nodes {
+          id
+          identifier
+          title
+          description
+          state { type name }
+          labels { nodes { name } }
+          team { id }
+        }
+        pageInfo {
+          hasNextPage
+          endCursor
+        }
       }
     }
-  }
-`;
+  `;
+}
 
 const ISSUE_WITH_RELATIONS_QUERY = `
   query IssueWithRelations($id: String!) {
@@ -85,6 +82,7 @@ interface SearchIssuesResponse {
         description: string | null;
         state: { type: string; name: string };
         labels: { nodes: Array<{ name: string }> };
+        team: { id: string };
       }>;
       pageInfo: {
         hasNextPage: boolean;
@@ -134,28 +132,24 @@ export class LinearClient {
     this.apiKey = config.apiKey;
   }
 
-  async searchIssues(filter: { stateName?: string; first?: number }): Promise<LinearSearchIssue[]> {
+  async searchIssues(filter: { stateName?: string; teamIds?: string[]; first?: number }): Promise<LinearSearchIssue[]> {
     const pageSize = filter.first ?? 50;
     const allIssues: LinearSearchIssue[] = [];
     let cursor: string | null = null;
+    const query = buildSearchQuery(filter);
 
     do {
+      const variables: Record<string, unknown> = { first: pageSize, after: cursor ?? undefined };
+      if (filter.stateName !== undefined) variables.stateName = filter.stateName;
+      if (filter.teamIds !== undefined && filter.teamIds.length > 0) variables.teamIds = filter.teamIds;
+
       const res = await fetch(LINEAR_API_URL, {
         method: "POST",
         headers: {
           Authorization: this.apiKey,
           "Content-Type": "application/json",
         },
-        body:
-          filter.stateName !== undefined
-            ? JSON.stringify({
-                query: SEARCH_ISSUES_QUERY,
-                variables: { stateName: filter.stateName, first: pageSize, after: cursor ?? undefined },
-              })
-            : JSON.stringify({
-                query: SEARCH_ALL_ISSUES_QUERY,
-                variables: { first: pageSize, after: cursor ?? undefined },
-              }),
+        body: JSON.stringify({ query, variables }),
       });
 
       if (!res.ok) {
@@ -181,6 +175,7 @@ export class LinearClient {
           description: n.description,
           state: n.state as LinearIssueState,
           labels: n.labels.nodes,
+          team: n.team,
         });
       }
 

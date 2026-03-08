@@ -7,7 +7,7 @@ export interface LinearWatchConfig {
   id: string;
   sourceId: string;
   flowName: string;
-  filter: { state?: string; labels?: string[] };
+  filter: { state?: string; labels?: string[]; teamIds?: string[] };
 }
 
 export interface LinearPollerConfig {
@@ -62,20 +62,38 @@ export class LinearPoller {
   }
 
   private async _doPoll(): Promise<void> {
-    const byState = new Map<string | null, LinearWatchConfig[]>();
+    // Group watches by (state, teamIds) so each unique combination gets one API call.
+    // teamIds are sorted and joined to form a stable key.
+    const groupKey = (w: LinearWatchConfig): string => {
+      const state = w.filter.state ?? "";
+      const teamIds = Array.isArray(w.filter.teamIds) ? w.filter.teamIds : [];
+      const teams = teamIds.slice().sort().join(",");
+      return `${state}\0${teams}`;
+    };
+
+    const byGroup = new Map<string, LinearWatchConfig[]>();
     for (const watch of this.watches) {
-      const state = watch.filter.state ?? null;
-      const existing = byState.get(state) ?? [];
+      const key = groupKey(watch);
+      const existing = byGroup.get(key) ?? [];
       existing.push(watch);
-      byState.set(state, existing);
+      byGroup.set(key, existing);
     }
 
-    for (const [stateName, watches] of byState) {
+    for (const [, watches] of byGroup) {
+      const { state } = watches[0].filter;
+      const teamIds = Array.isArray(watches[0].filter.teamIds) ? watches[0].filter.teamIds : [];
+      const searchFilter: { stateName?: string; teamIds?: string[] } = {};
+      if (state) searchFilter.stateName = state;
+      if (teamIds.length > 0) searchFilter.teamIds = teamIds;
+
       let issues: LinearSearchIssue[];
       try {
-        issues = await this.linearClient.searchIssues(stateName !== null ? { stateName } : {});
+        issues = await this.linearClient.searchIssues(Object.keys(searchFilter).length > 0 ? searchFilter : {});
       } catch (err) {
-        console.error(`[LinearPoller] Failed to fetch issues for state=${stateName ?? "all"}:`, err);
+        console.error(
+          `[LinearPoller] Failed to fetch issues for state=${state ?? "all"} teams=${teamIds?.join(",") ?? "all"}:`,
+          err,
+        );
         continue;
       }
 
@@ -111,13 +129,21 @@ export class LinearPoller {
     }
   }
 
-  private matchesFilter(issue: LinearSearchIssue, filter: { state?: string; labels?: string[] }): boolean {
+  private matchesFilter(
+    issue: LinearSearchIssue,
+    filter: { state?: string; labels?: string[]; teamIds?: string[] },
+  ): boolean {
     if (filter.state && issue.state.name !== filter.state) return false;
 
     if (filter.labels && filter.labels.length > 0) {
       const issueLabels = new Set(issue.labels.map((l) => l.name));
       const hasMatch = filter.labels.some((l) => issueLabels.has(l));
       if (!hasMatch) return false;
+    }
+
+    const teamIds = Array.isArray(filter.teamIds) ? filter.teamIds : [];
+    if (teamIds.length > 0) {
+      if (!teamIds.includes(issue.team?.id ?? "")) return false;
     }
 
     return true;
