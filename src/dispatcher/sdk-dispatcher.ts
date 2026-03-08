@@ -11,6 +11,18 @@ const MODEL_MAP: Record<DispatchOpts["modelTier"], string> = {
   haiku: "claude-haiku-4-5",
 };
 
+async function safeInsert(
+  repo: IEntityActivityRepo,
+  input: Parameters<IEntityActivityRepo["insert"]>[0],
+  tag: string,
+): Promise<void> {
+  try {
+    await repo.insert(input);
+  } catch (dbErr) {
+    console.error(`[claude] [${tag}] activity insert error`, dbErr instanceof Error ? dbErr.message : String(dbErr));
+  }
+}
+
 export class SdkDispatcher implements Dispatcher {
   constructor(private activityRepo: IEntityActivityRepo) {}
 
@@ -24,7 +36,7 @@ export class SdkDispatcher implements Dispatcher {
 
     try {
       console.log(`[claude] [${slotId}] START entity=${entityId} model=${MODEL_MAP[modelTier]}`);
-      this.activityRepo.insert({ entityId, slotId, type: "start", data: {} });
+      await safeInsert(this.activityRepo, { entityId, slotId, type: "start", data: {} }, slotId);
       for await (const message of query({
         prompt,
         options: {
@@ -39,21 +51,19 @@ export class SdkDispatcher implements Dispatcher {
           for (const block of message.message.content) {
             if (block.type === "tool_use") {
               console.log(`[claude] [${slotId}] tool_use ${block.name} ${JSON.stringify(block.input).slice(0, 120)}`);
-              this.activityRepo.insert({
-                entityId,
+              await safeInsert(
+                this.activityRepo,
+                { entityId, slotId, type: "tool_use", data: { name: block.name, input: block.input } },
                 slotId,
-                type: "tool_use",
-                data: { name: block.name, input: block.input },
-              });
+              );
             } else if (block.type === "text" && block.text) {
               lastText = block.text;
               console.log(`[claude] [${slotId}] text "${block.text.slice(0, 200).replace(/\n/g, " ")}"`);
-              this.activityRepo.insert({
-                entityId,
+              await safeInsert(
+                this.activityRepo,
+                { entityId, slotId, type: "text", data: { text: block.text } },
                 slotId,
-                type: "text",
-                data: { text: block.text },
-              });
+              );
             }
           }
         } else if (message.type === "result") {
@@ -62,12 +72,16 @@ export class SdkDispatcher implements Dispatcher {
           console.log(
             `[claude] [${slotId}] RESULT subtype=${subtype} is_error=${message.is_error} stop_reason=${message.stop_reason} cost=$${costUsd?.toFixed(4) ?? "?"}`,
           );
-          this.activityRepo.insert({
-            entityId,
+          await safeInsert(
+            this.activityRepo,
+            {
+              entityId,
+              slotId,
+              type: "result",
+              data: { subtype, cost_usd: costUsd, stop_reason: message.stop_reason },
+            },
             slotId,
-            type: "result",
-            data: { subtype, cost_usd: costUsd, stop_reason: message.stop_reason },
-          });
+          );
 
           if (message.is_error) {
             return { signal: "crash", artifacts: {}, exitCode: 1 };

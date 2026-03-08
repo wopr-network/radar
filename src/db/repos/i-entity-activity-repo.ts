@@ -15,7 +15,7 @@ export interface IEntityActivityRepo {
    * Atomically computes the next seq and inserts the row.
    * seq is managed internally — callers do not supply it.
    */
-  insert(input: Omit<ActivityRow, "id" | "seq" | "createdAt">): ActivityRow;
+  insert(input: Omit<ActivityRow, "id" | "seq" | "createdAt">): Promise<void>;
 
   /**
    * Returns all activity rows for the entity in ascending seq order.

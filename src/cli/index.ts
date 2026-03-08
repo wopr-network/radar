@@ -1,14 +1,18 @@
 #!/usr/bin/env node
 import { randomUUID } from "node:crypto";
+import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import { Command } from "commander";
 import { renderWorkerPrompt } from "./worker-prompt.js";
+
+const require = createRequire(import.meta.url);
+const { version } = require("../../package.json") as { version: string };
 
 export const VALID_DISCIPLINES = ["engineering", "devops", "qa", "security"] as const;
 
 export function buildProgram(): Command {
   const program = new Command();
-  program.name("radar").description("The only winning move is to have gates.").version("0.1.0");
+  program.name("radar").description("The only winning move is to have gates.").version(version);
 
   program
     .command("run")

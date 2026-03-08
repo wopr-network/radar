@@ -24,7 +24,7 @@ function toRow(raw: typeof entityActivity.$inferSelect): ActivityRow {
 export class DrizzleEntityActivityRepo implements IEntityActivityRepo {
   constructor(private db: RadarDb) {}
 
-  insert(input: Omit<ActivityRow, "id" | "seq" | "createdAt">): ActivityRow {
+  async insert(input: Omit<ActivityRow, "id" | "seq" | "createdAt">): Promise<void> {
     const id = crypto.randomUUID();
     const now = Date.now();
     // better-sqlite3 is single-writer; wrapping in a transaction ensures
@@ -50,9 +50,6 @@ export class DrizzleEntityActivityRepo implements IEntityActivityRepo {
         })
         .run();
     });
-    const row = this.db.select().from(entityActivity).where(eq(entityActivity.id, id)).get();
-    if (!row) throw new Error("Insert failed");
-    return toRow(row);
   }
 
   getByEntity(entityId: string, since?: number): ActivityRow[] {
