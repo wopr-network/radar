@@ -66,21 +66,19 @@ export function buildProgram(): Command {
       const dbEventLogRepo = new DbEventLogRepo(noradDb);
 
       if (opts.seed) {
-        const { default: Database } = await import("better-sqlite3");
+        const { createDb } = await import("../db/index.js");
         const { loadSeed, expandEnvVarsInValue } = await import("../seed/loader.js");
         const { SeedFileSchema } = await import("../seed/types.js");
         const { readFileSync } = await import("node:fs");
         const { resolve } = await import("node:path");
 
-        const seedDb = new Database(":memory:");
+        const seedDb = createDb(":memory:");
         let seedResult: { flows: number; sources: number; watches: number };
         try {
           seedResult = await loadSeed(opts.seed as string, { defconUrl: opts.defconUrl as string, db: seedDb });
         } catch (err) {
           console.error(`[norad] Seed failed: ${(err as Error).message}`);
           process.exit(1);
-        } finally {
-          seedDb.close();
         }
 
         // Re-parse seed to populate drizzle DB so API server can serve sources/watches
