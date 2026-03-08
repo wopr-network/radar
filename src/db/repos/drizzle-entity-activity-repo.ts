@@ -10,7 +10,13 @@ function toRow(raw: typeof entityActivity.$inferSelect): ActivityRow {
     slotId: raw.slotId,
     seq: raw.seq,
     type: raw.type as ActivityRow["type"],
-    data: JSON.parse(raw.data) as Record<string, unknown>,
+    data: (() => {
+      try {
+        return JSON.parse(raw.data) as Record<string, unknown>;
+      } catch {
+        return {};
+      }
+    })(),
     createdAt: raw.createdAt,
   };
 }

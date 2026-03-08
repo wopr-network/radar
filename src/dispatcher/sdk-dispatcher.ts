@@ -17,14 +17,13 @@ export class SdkDispatcher implements Dispatcher {
   async dispatch(prompt: string, opts: DispatchOpts): Promise<WorkerResult> {
     const { entityId, workerId: slotId, modelTier, timeout = DEFAULT_TIMEOUT_MS } = opts;
 
-    this.activityRepo.insert({ entityId, slotId, type: "start", data: {} });
-
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeout);
 
     let lastText = "";
 
     try {
+      this.activityRepo.insert({ entityId, slotId, type: "start", data: {} });
       for await (const message of query({
         prompt,
         options: {
