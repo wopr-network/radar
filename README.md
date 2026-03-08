@@ -28,9 +28,13 @@ That's the insight. WOPR's problem wasn't that it played the game. Its problem w
 
 WOPR writes code. Real code. It runs real tests. Real linters. Real CI pipelines. It opens real PRs and passes real review. Every DEFCON level is a gate that checks real evidence — not simulated scenarios, not vibes, not "the AI said it looks good." Shell commands. Exit codes. Binary pass/fail.
 
+Here's what that means in practice: a competent AI agent working on a real codebase needs roughly three cycles to produce correct code. Not because the model is bad. Because that's the cost of correctness — context limits, missed edge cases, implicit contracts that aren't written down anywhere. The first pass gets you most of the way there. The next cycles close the gap. You can't spend your way out of it by loading more context upfront. The iteration is the work.
+
+DEFCON is built around that reality. The `reviewing → fixing → reviewing` loop isn't a fallback for bad agents — it's the designed path. The gates exist because correction cycles are expected, and the only question is whether they happen inside a controlled loop or in production at 2am.
+
 And when WOPR plays this game to perfection — when it clears every gate, satisfies every check, earns every escalation — it launches. The merge happens. The deploy goes out. The feature ships.
 
-We gave an AI the launch codes. On purpose.
+We gave an AI the launch codes. On purpose. Because the loop is real.
 
 ---
 
