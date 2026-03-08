@@ -171,6 +171,7 @@ export class RunLoop {
 
     try {
       const modelTier = "sonnet";
+      const originalPrompt = claim.prompt;
       let currentPrompt = claim.prompt;
       let currentSignal: string | undefined;
       let currentArtifacts: Record<string, unknown> | undefined;
@@ -215,7 +216,19 @@ export class RunLoop {
         }
 
         if (response.next_action === "continue") {
-          currentPrompt = response.prompt ?? currentPrompt;
+          let history = "";
+          if (this.config.activityRepo) {
+            try {
+              history = this.config.activityRepo.getSummary(claim.entity_id);
+            } catch (err) {
+              console.warn(
+                `[radar] slot ${slotId} getSummary failed, continuing without history:`,
+                safeErrorMessage(err),
+              );
+            }
+          }
+          const basePrompt = response.prompt ?? originalPrompt;
+          currentPrompt = history ? `${history}\n\n---\n${basePrompt}` : basePrompt;
           currentSignal = undefined;
           currentArtifacts = undefined;
           continue;

@@ -143,13 +143,12 @@ export function buildProgram(): Command {
       const { Pool } = await import("../pool/pool.js");
       const { DefconClient } = await import("../defcon/client.js");
       const { ClaudeCodeDispatcher } = await import("../dispatcher/claude-code-dispatcher.js");
+      const { DrizzleEntityActivityRepo } = await import("../db/repos/drizzle-entity-activity-repo.js");
       const { RunLoop } = await import("../run-loop/run-loop.js");
       const { createServer } = await import("../api/server.js");
       const { SourceAdapterRegistry } = await import("../sources/adapter.js");
       const { LinearSourceAdapter } = await import("../sources/linear-adapter.js");
       const { GenericSourceAdapter } = await import("../sources/generic-adapter.js");
-
-      const { DrizzleEntityActivityRepo } = await import("../db/repos/drizzle-entity-activity-repo.js");
 
       const pool = new Pool(opts.workers);
       const defcon = new DefconClient({ url: opts.defconUrl, workerToken: opts.workerToken });
@@ -434,6 +433,7 @@ export function buildProgram(): Command {
         pool,
         defcon,
         dispatcher,
+        activityRepo,
         role: opts.role,
         flow: opts.flow,
         workerIdPrefix: opts.worker,
