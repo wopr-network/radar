@@ -16,7 +16,7 @@
           "agentRole": "architect",
           "modelTier": "opus",
           "mode": "active",
-          "promptTemplate": "You are an architect. Analyze issue {{issueKey}} and write a detailed implementation spec. Post the spec as a comment on the Linear issue, then signal spec_ready."
+          "promptTemplate": "You are an architect. Analyze issue {{issueKey}} and write a detailed implementation spec. Post the spec as a comment on the Linear issue. If the issue requires UI design work, signal design_needed. Otherwise, signal spec_ready."
         },
         {
           "name": "ui_designing",
