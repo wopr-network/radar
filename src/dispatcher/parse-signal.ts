@@ -42,7 +42,7 @@ const SIGNAL_PATTERNS: SignalPattern[] = [
     extractArtifacts: (m) => ({ url: m[1] }),
   },
   {
-    pattern: /\bstart\b/,
+    pattern: /^start$/,
     signal: "start",
     extractArtifacts: () => ({}),
   },

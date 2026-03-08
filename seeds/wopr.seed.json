@@ -59,38 +59,32 @@
         {
           "fromState": "backlog",
           "toState": "architecting",
-          "trigger": "start",
-          "condition": "unblocked_gate AND pr_capacity_gate"
+          "trigger": "start"
         },
         {
           "fromState": "architecting",
           "toState": "coding",
-          "trigger": "spec_ready",
-          "condition": "spec_posted_gate"
+          "trigger": "spec_ready"
         },
         {
           "fromState": "architecting",
           "toState": "ui_designing",
-          "trigger": "design_needed",
-          "condition": "spec_posted_gate"
+          "trigger": "design_needed"
         },
         {
           "fromState": "ui_designing",
           "toState": "coding",
-          "trigger": "design_ready",
-          "condition": "design_posted_gate"
+          "trigger": "design_ready"
         },
         {
           "fromState": "coding",
           "toState": "reviewing",
-          "trigger": "pr_created",
-          "condition": "review_ready_gate"
+          "trigger": "pr_created"
         },
         {
           "fromState": "reviewing",
           "toState": "done",
-          "trigger": "clean",
-          "condition": "merge_gate"
+          "trigger": "clean"
         },
         {
           "fromState": "reviewing",
@@ -100,8 +94,7 @@
         {
           "fromState": "fixing",
           "toState": "reviewing",
-          "trigger": "fixes_pushed",
-          "condition": "review_ready_gate"
+          "trigger": "fixes_pushed"
         },
         {
           "fromState": "fixing",
