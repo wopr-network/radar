@@ -7,7 +7,7 @@ import { Ingestor } from "../../src/ingestion/ingestor.js";
 function makeDefcon(overrides: Partial<DefconClient> = {}): DefconClient {
   return {
     claim: vi.fn(),
-    createEntity: vi.fn().mockResolvedValue({ entityId: "entity-abc" }),
+    createEntity: vi.fn().mockResolvedValue({ id: "entity-abc" }),
     report: vi.fn().mockResolvedValue({ next_action: "continue", new_state: "done", prompt: "" }),
     ...overrides,
   } as unknown as DefconClient;
@@ -110,7 +110,7 @@ describe("Ingestor", () => {
   it("handleNew: cleans up sentinel row on createEntity failure so future events can retry", async () => {
     const db = createDb();
     const defcon = makeDefcon({
-      createEntity: vi.fn().mockRejectedValueOnce(new Error("defcon unavailable")).mockResolvedValue({ entityId: "entity-abc" }),
+      createEntity: vi.fn().mockRejectedValueOnce(new Error("defcon unavailable")).mockResolvedValue({ id: "entity-abc" }),
     });
     const ingestor = new Ingestor(new DrizzleEntityMapRepository(db), defcon);
 

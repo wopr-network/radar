@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { ClaimResponse, ReportResponse } from "../defcon/types.js";
+import type { ClaimResponse, ReportResponse } from "@wopr-network/defcon";
 import { extractRepoFromDescription } from "../sources/linear/repo-extractor.js";
 import { safeErrorMessage } from "../sources/sanitize.js";
 import type { RunLoopConfig } from "./types.js";
@@ -215,7 +215,7 @@ export class RunLoop {
         }
 
         if (response.next_action === "continue") {
-          currentPrompt = response.prompt;
+          currentPrompt = response.prompt ?? currentPrompt;
           currentSignal = undefined;
           currentArtifacts = undefined;
           continue;

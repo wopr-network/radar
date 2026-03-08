@@ -1,4 +1,4 @@
-import type { ClaimResponse, CreateEntityResponse, ReportResponse } from "./types.js";
+import type { ClaimResponse, CreateEntityResponse, ReportResponse } from "@wopr-network/defcon";
 
 export interface DefconClientConfig {
   url: string;
@@ -46,8 +46,7 @@ export class DefconClient {
       signal,
     });
     if (!res.ok) throw new Error(`entity create failed: ${res.status}`);
-    const data = (await res.json()) as { id: string };
-    return { entityId: data.id };
+    return res.json() as Promise<CreateEntityResponse>;
   }
 
   async report(

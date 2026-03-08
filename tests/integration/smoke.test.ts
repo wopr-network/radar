@@ -159,7 +159,7 @@ function createEchoDispatcher(): Dispatcher & { dispatch: ReturnType<typeof vi.f
 
 function createMockDefcon(overrides: {
   claim: () => Promise<ClaimResponse>;
-  createEntity: () => Promise<{ entityId: string }>;
+  createEntity: () => Promise<{ id: string }>;
   report: () => Promise<ReportResponse>;
 }): DefconClient {
   return {
@@ -223,7 +223,7 @@ describe("Integration smoke test", () => {
     // 3. Mock DEFCON: first claim returns work, subsequent calls return check_back
     let claimCount = 0;
     mockDefcon = createMockDefcon({
-      createEntity: async () => ({ entityId: "entity-smoke-1" }),
+      createEntity: async () => ({ id: "entity-smoke-1" }),
       claim: async () => {
         claimCount++;
         if (claimCount === 1) {

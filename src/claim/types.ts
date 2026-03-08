@@ -1,4 +1,4 @@
-import type { ClaimResponse } from "../defcon/types.js";
+import type { ClaimResponse } from "@wopr-network/defcon";
 
 export interface ExternalClaimRequest {
   workerId?: string;
