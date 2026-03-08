@@ -133,6 +133,9 @@ export function buildProgram(): Command {
       const { ClaudeCodeDispatcher } = await import("../dispatcher/claude-code-dispatcher.js");
       const { RunLoop } = await import("../run-loop/run-loop.js");
       const { createServer } = await import("../api/server.js");
+      const { SourceAdapterRegistry } = await import("../sources/adapter.js");
+      const { LinearSourceAdapter } = await import("../sources/linear-adapter.js");
+      const { GenericSourceAdapter } = await import("../sources/generic-adapter.js");
 
       const pool = new Pool(opts.workers);
       const defcon = new DefconClient({ url: opts.defconUrl });
@@ -390,6 +393,10 @@ export function buildProgram(): Command {
         },
       };
 
+      const adapterRegistry = new SourceAdapterRegistry();
+      adapterRegistry.register(new LinearSourceAdapter());
+      adapterRegistry.register(new GenericSourceAdapter());
+
       const apiServer = createServer({
         sourceRepo,
         watchRepo,
@@ -397,7 +404,8 @@ export function buildProgram(): Command {
         eventLogRepo,
         pool,
         defconClient: defcon,
-        onWebhook: async (_sourceId: string, _payload: unknown) => {},
+        adapterRegistry,
+        onWebhook: async (_sourceId: string, _event: unknown) => {},
       });
 
       await new Promise<void>((res) => apiServer.listen(port, res));

@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Router } from "../../../src/api/router.js";
 import { registerWebhookRoutes } from "../../../src/api/routes/webhooks.js";
-import type { Source, SourceRepo } from "../../../src/api/types.js";
+import type { Source, SourceRepo, Watch, WatchRepo } from "../../../src/api/types.js";
+import type { SourceAdapter } from "../../../src/sources/adapter.js";
+import { SourceAdapterRegistry } from "../../../src/sources/adapter.js";
 
 function makeSourceRepo(sources: Source[]): SourceRepo {
   const map = new Map(sources.map((s) => [s.id, s]));
@@ -24,52 +26,118 @@ function makeSourceRepo(sources: Source[]): SourceRepo {
   };
 }
 
-describe("Webhook Routes", () => {
+function makeWatchRepo(watches: Watch[]): WatchRepo {
+  return {
+    async findBySourceId(sourceId) {
+      return watches.filter((w) => w.source_id === sourceId);
+    },
+    async findById(id) {
+      return watches.find((w) => w.id === id);
+    },
+    async create() {
+      return {} as Watch;
+    },
+    async update() {
+      return undefined;
+    },
+    async delete() {
+      return false;
+    },
+  };
+}
+
+describe("Webhook Routes (adapter-based)", () => {
   let router: Router;
   let onWebhook: ReturnType<typeof vi.fn>;
+  let registry: SourceAdapterRegistry;
+
+  const source: Source = {
+    id: "src-1",
+    name: "test",
+    type: "test-type",
+    config: {},
+    enabled: true,
+    created_at: 0,
+    updated_at: 0,
+  };
+
+  const watch: Watch = {
+    id: "w-1",
+    source_id: "src-1",
+    name: "w",
+    filter: {},
+    action: "ingest",
+    action_config: { flowName: "f" },
+    enabled: true,
+    created_at: 0,
+    updated_at: 0,
+  };
 
   beforeEach(() => {
     router = new Router();
     onWebhook = vi.fn().mockResolvedValue(undefined);
-    const source: Source = {
-      id: "src-1",
-      name: "gh",
-      type: "webhook",
-      config: {},
-      enabled: true,
-      created_at: 0,
-      updated_at: 0,
-    };
-    const repo = makeSourceRepo([source]);
-    registerWebhookRoutes(router, repo, onWebhook);
+    registry = new SourceAdapterRegistry();
   });
 
-  it("POST /webhooks/:sourceId delegates to onWebhook", async () => {
-    const payload = { event: "push" };
-    const result = await router.handle("POST", "/webhooks/src-1", JSON.stringify(payload), new URLSearchParams());
+  it("delegates to adapter.parseEvent and calls onWebhook with result", async () => {
+    const mockEvent = { sourceId: "src-1", externalId: "e1", type: "new" as const, flowName: "f" };
+    const adapter: SourceAdapter = {
+      type: "test-type",
+      parseEvent: () => mockEvent,
+      verifySignature: () => ({ valid: true }),
+    };
+    registry.register(adapter);
+    registerWebhookRoutes(router, makeSourceRepo([source]), makeWatchRepo([watch]), registry, onWebhook);
+
+    const result = await router.handle("POST", "/webhooks/src-1", '{"x":1}', new URLSearchParams());
     expect(result.status).toBe(200);
-    expect(onWebhook).toHaveBeenCalledWith("src-1", payload);
+    expect(onWebhook).toHaveBeenCalledWith("src-1", mockEvent);
   });
 
-  it("POST /webhooks/:sourceId returns 401 for unknown source", async () => {
-    const result = await router.handle("POST", "/webhooks/unknown", JSON.stringify({}), new URLSearchParams());
-    expect(result.status).toBe(401);
+  it("returns 400 when no adapter registered for source type", async () => {
+    registerWebhookRoutes(router, makeSourceRepo([source]), makeWatchRepo([watch]), registry, onWebhook);
+    const result = await router.handle("POST", "/webhooks/src-1", "{}", new URLSearchParams());
+    expect(result.status).toBe(400);
   });
 
-  it("POST /webhooks/:sourceId returns 401 for disabled source", async () => {
-    const disabled: Source = {
-      id: "src-off",
-      name: "off",
-      type: "webhook",
-      config: {},
-      enabled: false,
-      created_at: 0,
-      updated_at: 0,
+  it("returns 401 when adapter.verifySignature fails", async () => {
+    const adapter: SourceAdapter = {
+      type: "test-type",
+      parseEvent: () => null,
+      verifySignature: () => ({ valid: false, error: "bad sig" }),
     };
-    const router2 = new Router();
-    registerWebhookRoutes(router2, makeSourceRepo([disabled]), onWebhook);
-    const result = await router2.handle("POST", "/webhooks/src-off", JSON.stringify({}), new URLSearchParams());
+    registry.register(adapter);
+    registerWebhookRoutes(router, makeSourceRepo([source]), makeWatchRepo([watch]), registry, onWebhook);
+
+    const result = await router.handle("POST", "/webhooks/src-1", "{}", new URLSearchParams());
     expect(result.status).toBe(401);
+  });
+
+  it("returns 200 with accepted:false when parseEvent returns null", async () => {
+    const adapter: SourceAdapter = {
+      type: "test-type",
+      parseEvent: () => null,
+      verifySignature: () => ({ valid: true }),
+    };
+    registry.register(adapter);
+    registerWebhookRoutes(router, makeSourceRepo([source]), makeWatchRepo([watch]), registry, onWebhook);
+
+    const result = await router.handle("POST", "/webhooks/src-1", "{}", new URLSearchParams());
+    expect(result.status).toBe(200);
     expect(onWebhook).not.toHaveBeenCalled();
+  });
+
+  it("returns 401 for unknown source", async () => {
+    registerWebhookRoutes(router, makeSourceRepo([source]), makeWatchRepo([]), registry, onWebhook);
+    const result = await router.handle("POST", "/webhooks/unknown", "{}", new URLSearchParams());
+    expect(result.status).toBe(401);
+  });
+
+  it("returns 401 for disabled source", async () => {
+    const disabled: Source = { ...source, id: "src-off", enabled: false };
+    const router2 = new Router();
+    registerWebhookRoutes(router2, makeSourceRepo([disabled]), makeWatchRepo([]), registry, onWebhook);
+    const result = await router2.handle("POST", "/webhooks/src-off", "{}", new URLSearchParams());
+    expect(result.status).toBe(401);
   });
 });

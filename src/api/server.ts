@@ -31,7 +31,7 @@ function readBody(req: IncomingMessage): Promise<string> {
 export function createServer(deps: AppDeps): Server {
   const router = new Router();
 
-  registerWebhookRoutes(router, deps.sourceRepo, deps.onWebhook);
+  registerWebhookRoutes(router, deps.sourceRepo, deps.watchRepo, deps.adapterRegistry, deps.onWebhook);
   registerSourceRoutes(router, deps.sourceRepo);
   registerWatchRoutes(router, deps.watchRepo);
   registerWorkerRoutes(router, deps.workerRepo);
