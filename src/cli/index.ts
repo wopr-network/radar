@@ -149,10 +149,13 @@ export function buildProgram(): Command {
       const { LinearSourceAdapter } = await import("../sources/linear-adapter.js");
       const { GenericSourceAdapter } = await import("../sources/generic-adapter.js");
 
+      const { DrizzleEntityActivityRepo } = await import("../db/repos/drizzle-entity-activity-repo.js");
+
       const pool = new Pool(opts.workers);
       const defcon = new DefconClient({ url: opts.defconUrl, workerToken: opts.workerToken });
       const ingestor = new Ingestor(entityMapRepo, defcon);
       const dispatcher = new ClaudeCodeDispatcher();
+      const activityRepo = new DrizzleEntityActivityRepo(radarDb);
 
       // Adapters: bridge drizzle repo method names to AppDeps interface
       const sourceRepo = {
@@ -415,6 +418,7 @@ export function buildProgram(): Command {
         watchRepo,
         workerRepo,
         eventLogRepo,
+        activityRepo,
         pool,
         defconClient: defcon,
         adapterRegistry,

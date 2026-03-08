@@ -1,3 +1,4 @@
+import type { IEntityActivityRepo } from "../db/repos/i-entity-activity-repo.js";
 import type { DefconClient } from "../defcon/index.js";
 import type { IngestEvent } from "../ingestion/types.js";
 import type { Pool } from "../pool/index.js";
@@ -34,6 +35,7 @@ export interface AppDeps {
   watchRepo: WatchRepo;
   eventLogRepo: EventLogRepo;
   workerRepo: WorkerRepo;
+  activityRepo: IEntityActivityRepo;
   pool: Pool;
   defconClient: DefconClient;
   adapterRegistry: SourceAdapterRegistry;
