@@ -1,6 +1,6 @@
 {
   "name": "@wopr-network/radar",
-  "version": "1.7.1",
+  "version": "1.7.2",
   "type": "module",
   "engines": {
     "node": ">=24.0.0"
@@ -30,6 +30,7 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "prepublishOnly": "npm run build",
     "check": "tsc -p tsconfig.json --noEmit && biome check src",
     "lint": "biome check src",
     "format": "biome format --write src",
