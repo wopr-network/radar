@@ -1,10 +1,15 @@
 import type { Router } from "../router.js";
 import type { Source, SourceRepo } from "../types.js";
 
+function redactSource(source: Source): Omit<Source, "config"> & { config: Record<string, unknown> } {
+  const { secret: _, ...safeConfig } = (source.config ?? {}) as Record<string, unknown>;
+  return { ...source, config: safeConfig };
+}
+
 export function registerSourceRoutes(router: Router, repo: SourceRepo): void {
   router.add("GET", "/api/sources", async () => {
     const sources = await repo.findAll();
-    return { status: 200, body: sources };
+    return { status: 200, body: sources.map(redactSource) };
   });
 
   router.add("POST", "/api/sources", async (ctx) => {
@@ -27,7 +32,7 @@ export function registerSourceRoutes(router: Router, repo: SourceRepo): void {
   router.add("GET", "/api/sources/:id", async (ctx) => {
     const source = await repo.findById(ctx.params.id);
     if (!source) return { status: 404, body: { error: "Source not found" } };
-    return { status: 200, body: source };
+    return { status: 200, body: redactSource(source) };
   });
 
   router.add("PUT", "/api/sources/:id", async (ctx) => {

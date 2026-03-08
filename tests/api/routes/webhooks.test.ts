@@ -51,12 +51,12 @@ describe("Webhook Routes", () => {
     expect(onWebhook).toHaveBeenCalledWith("src-1", payload);
   });
 
-  it("POST /webhooks/:sourceId returns 404 for unknown source", async () => {
+  it("POST /webhooks/:sourceId returns 401 for unknown source", async () => {
     const result = await router.handle("POST", "/webhooks/unknown", JSON.stringify({}), new URLSearchParams());
-    expect(result.status).toBe(404);
+    expect(result.status).toBe(401);
   });
 
-  it("POST /webhooks/:sourceId returns 400 for disabled source", async () => {
+  it("POST /webhooks/:sourceId returns 401 for disabled source", async () => {
     const disabled: Source = {
       id: "src-off",
       name: "off",
@@ -69,7 +69,7 @@ describe("Webhook Routes", () => {
     const router2 = new Router();
     registerWebhookRoutes(router2, makeSourceRepo([disabled]), onWebhook);
     const result = await router2.handle("POST", "/webhooks/src-off", JSON.stringify({}), new URLSearchParams());
-    expect(result.status).toBe(400);
+    expect(result.status).toBe(401);
     expect(onWebhook).not.toHaveBeenCalled();
   });
 });
