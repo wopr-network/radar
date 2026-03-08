@@ -1,4 +1,5 @@
 import type { Ingestor } from "../../ingestion/ingestor.js";
+import { safeErrorMessage } from "../sanitize.js";
 import type { LinearClient } from "./client.js";
 import { extractRepoFromDescription } from "./repo-extractor.js";
 import type { LinearSearchIssue } from "./types.js";
@@ -92,7 +93,7 @@ export class LinearPoller {
       } catch (err) {
         console.error(
           `[LinearPoller] Failed to fetch issues for state=${state ?? "all"} teams=${teamIds?.join(",") ?? "all"}:`,
-          err,
+          safeErrorMessage(err),
         );
         continue;
       }
@@ -122,7 +123,7 @@ export class LinearPoller {
               },
             });
           } catch (err) {
-            console.error(`[LinearPoller] Failed to ingest ${issue.identifier}:`, err);
+            console.error(`[LinearPoller] Failed to ingest ${issue.identifier}:`, safeErrorMessage(err));
           }
         }
       }

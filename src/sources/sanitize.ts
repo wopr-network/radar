@@ -1,0 +1,19 @@
+const BEARER_PATTERN = /Bearer\s+[A-Za-z0-9\-._~+/]+=*/g;
+const LINEAR_API_KEY_PATTERN = /lin_api_[A-Za-z0-9]+/g;
+const GITHUB_TOKEN_PATTERN = /gh[ps]_[A-Za-z0-9]{36,}/g;
+const KEY_VALUE_PATTERN = /((?:api[_-]?key|token|secret|password|authorization)\s*[=:]\s*["']?)[^\s"',}]+/gi;
+
+export function sanitizeErrorMessage(msg: string): string {
+  let result = msg;
+  result = result.replace(BEARER_PATTERN, "Bearer [REDACTED]");
+  result = result.replace(LINEAR_API_KEY_PATTERN, "[REDACTED]");
+  result = result.replace(GITHUB_TOKEN_PATTERN, "[REDACTED]");
+  result = result.replace(KEY_VALUE_PATTERN, "$1[REDACTED]");
+  return result;
+}
+
+export function safeErrorMessage(err: unknown): string {
+  if (err === null || err === undefined) return "unknown error";
+  const msg = err instanceof Error ? err.message : String(err);
+  return sanitizeErrorMessage(msg);
+}
