@@ -58,7 +58,10 @@ export const entityActivity = sqliteTable(
     data: text("data").notNull(), // JSON blob
     createdAt: integer("created_at").notNull(),
   },
-  (t) => [index("entity_activity_entity_id_idx").on(t.entityId)],
+  (t) => [
+    index("entity_activity_entity_id_idx").on(t.entityId),
+    uniqueIndex("entity_activity_entity_seq_uniq").on(t.entityId, t.seq),
+  ],
 );
 
 export const entityMap = sqliteTable(
