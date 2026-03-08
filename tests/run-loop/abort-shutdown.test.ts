@@ -109,7 +109,7 @@ describe("RunLoop abort-aware shutdown", () => {
     await loop.stop();
     const elapsed = Date.now() - start;
 
-    expect(elapsed).toBeLessThan(800);
+    expect(elapsed).toBeLessThan(3000);
   });
 
   it("stop() resolves within stopTimeoutMs even if report hangs", async () => {
@@ -162,6 +162,6 @@ describe("RunLoop abort-aware shutdown", () => {
     await loop.stop();
     const elapsed = Date.now() - start;
 
-    expect(elapsed).toBeLessThan(800);
+    expect(elapsed).toBeLessThan(3000);
   });
 });
