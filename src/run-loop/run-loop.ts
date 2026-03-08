@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { ClaimResponse, ReportResponse } from "../defcon/types.js";
 import { extractRepoFromDescription } from "../sources/linear/repo-extractor.js";
+import { safeErrorMessage } from "../sources/sanitize.js";
 import type { RunLoopConfig } from "./types.js";
 
 const DEFAULT_POLL_INTERVAL_MS = 5000;
@@ -99,7 +100,7 @@ export class RunLoop {
         await this.claimAndProcess(slotId, workerId);
       } catch (err) {
         if (!this.signal.aborted) {
-          console.error(`[norad] slot ${slotId} claim error:`, (err as Error).message);
+          console.error(`[norad] slot ${slotId} claim error:`, safeErrorMessage(err));
           await sleep(this.pollIntervalMs, this.signal);
         }
       }
@@ -148,7 +149,7 @@ export class RunLoop {
             artifacts: { error: `per-repo concurrency limit reached for ${claimRepo}` },
           });
         } catch (err) {
-          console.error("[run-loop] crash report failed:", err);
+          console.error("[run-loop] crash report failed:", safeErrorMessage(err));
         }
         await sleep(this.pollIntervalMs, this.signal);
         return;
@@ -190,7 +191,7 @@ export class RunLoop {
             currentArtifacts = result.artifacts;
           } catch (err) {
             currentSignal = "crash";
-            currentArtifacts = { error: (err as Error).message };
+            currentArtifacts = { error: safeErrorMessage(err) };
           } finally {
             clearInterval(heartbeatInterval);
           }
@@ -206,7 +207,7 @@ export class RunLoop {
           });
         } catch (err) {
           if (!this.signal.aborted) {
-            console.error(`[norad] slot ${slotId} report error:`, (err as Error).message);
+            console.error(`[norad] slot ${slotId} report error:`, safeErrorMessage(err));
             await sleep(this.pollIntervalMs, this.signal);
             continue;
           }
