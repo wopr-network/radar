@@ -191,7 +191,7 @@ export class RunLoop {
             currentArtifacts = result.artifacts;
           } catch (err) {
             currentSignal = "crash";
-            currentArtifacts = { error: (err as Error).message };
+            currentArtifacts = { error: safeErrorMessage(err) };
           } finally {
             clearInterval(heartbeatInterval);
           }

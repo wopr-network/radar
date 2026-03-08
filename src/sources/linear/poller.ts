@@ -40,7 +40,7 @@ export class LinearPoller {
     this.timer = setInterval(() => {
       if (this.isPolling) return;
       this.pollOnce().catch((err) => {
-        console.error("[LinearPoller] poll error:", err);
+        console.error("[LinearPoller] poll error:", safeErrorMessage(err));
       });
     }, this.intervalMs);
   }
