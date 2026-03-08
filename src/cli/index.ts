@@ -59,9 +59,12 @@ export function buildProgram(): Command {
       const { WatchRepo: DbWatchRepo } = await import("../db/repos/watch-repo.js");
       const { WorkerRepo: DbWorkerRepo } = await import("../db/repos/worker-repo.js");
       const { EventLogRepo: DbEventLogRepo } = await import("../db/repos/event-log-repo.js");
+      const { DrizzleEntityMapRepository } = await import("../db/repos/entity-map-repo.js");
+      const { Ingestor } = await import("../ingestion/ingestor.js");
       const { sources: sourcesTable, watches: watchesTable } = await import("../db/schema.js");
 
       const noradDb = createDb(":memory:");
+      const entityMapRepo = new DrizzleEntityMapRepository(noradDb);
       const dbSourceRepo = new DbSourceRepo(noradDb);
       const dbWatchRepo = new DbWatchRepo(noradDb);
       const dbWorkerRepo = new DbWorkerRepo(noradDb);
@@ -145,6 +148,7 @@ export function buildProgram(): Command {
 
       const pool = new Pool(opts.workers);
       const defcon = new DefconClient({ url: opts.defconUrl, workerToken: opts.workerToken });
+      const ingestor = new Ingestor(entityMapRepo, defcon);
       const dispatcher = new ClaudeCodeDispatcher();
 
       // Adapters: bridge drizzle repo method names to AppDeps interface
@@ -411,7 +415,9 @@ export function buildProgram(): Command {
         pool,
         defconClient: defcon,
         adapterRegistry,
-        onWebhook: async (_sourceId: string, _event: import("../ingestion/types.js").IngestEvent) => {},
+        onWebhook: async (_sourceId: string, event: import("../ingestion/types.js").IngestEvent) => {
+          await ingestor.ingest(event);
+        },
       });
 
       await new Promise<void>((res) => apiServer.listen(port, res));
