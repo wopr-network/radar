@@ -70,7 +70,8 @@ export class DrizzleEntityActivityRepo implements IEntityActivityRepo {
 
     const attempts: string[] = [];
     let attemptNum = 1;
-    for (const [, events] of bySlot) {
+    const slots = [...bySlot.entries()].sort((a, b) => (a[1][0]?.seq ?? 0) - (b[1][0]?.seq ?? 0));
+    for (const [, events] of slots) {
       const lines: string[] = [`Attempt ${attemptNum}:`];
       for (const event of events) {
         if (event.type === "tool_use") {
