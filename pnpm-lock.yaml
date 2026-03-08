@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@wopr-network/defcon':
-        specifier: file:/home/tsavo/defcon/.worktrees/feat-export-types
-        version: file:../../../defcon/.worktrees/feat-export-types(@types/better-sqlite3@7.6.13)(graphql@16.13.1)
+        specifier: ^0.2.2
+        version: 0.2.2(@types/better-sqlite3@7.6.13)(graphql@16.13.1)
       better-sqlite3:
         specifier: ^12.6.2
         version: 12.6.2
@@ -520,8 +520,8 @@ packages:
   '@vitest/utils@3.2.4':
     resolution: {integrity: sha512-fB2V0JFrQSMsCo9HiSq3Ezpdv4iYaXRG1Sx8edX3MwxfyNn83mKiGzOcH+Fkxt4MHxr3y42fQi1oeAInqgX2QA==}
 
-  '@wopr-network/defcon@file:../../../defcon/.worktrees/feat-export-types':
-    resolution: {directory: ../../../defcon/.worktrees/feat-export-types, type: directory}
+  '@wopr-network/defcon@0.2.2':
+    resolution: {integrity: sha512-EwZ1CZNT88Y1XSl66xb21qgqvfQiQIY1sE/TNOOZsdR77C4pQqSlJfnYVCM2xZlmXs+iaI4YWAZBRmFBksUvFw==}
     engines: {node: '>=24.0.0'}
     hasBin: true
 
@@ -1853,7 +1853,7 @@ snapshots:
       loupe: 3.2.1
       tinyrainbow: 2.0.0
 
-  '@wopr-network/defcon@file:../../../defcon/.worktrees/feat-export-types(@types/better-sqlite3@7.6.13)(graphql@16.13.1)':
+  '@wopr-network/defcon@0.2.2(@types/better-sqlite3@7.6.13)(graphql@16.13.1)':
     dependencies:
       '@anthropic-ai/sdk': 0.78.0(zod@4.3.6)
       '@linear/sdk': 76.0.0(graphql@16.13.1)

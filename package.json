@@ -35,7 +35,7 @@
     "vitest": "^3.0.0"
   },
   "dependencies": {
-    "@wopr-network/defcon": "file:/home/tsavo/defcon/.worktrees/feat-export-types",
+    "@wopr-network/defcon": "^0.2.2",
     "better-sqlite3": "^12.6.2",
     "commander": "^13.0.0",
     "drizzle-orm": "^0.45.1",
