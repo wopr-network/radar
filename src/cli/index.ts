@@ -21,6 +21,7 @@ export function buildProgram(): Command {
     .option("--worker <type>", "Worker type identifier")
     .option("--seed <path>", "Seed file path")
     .option("--defcon-url <url>", "DEFCON server URL", "http://localhost:3000")
+    .option("--worker-token <token>", "DEFCON worker token for claiming work", process.env.DEFCON_WORKER_TOKEN)
     .option("--admin-token <token>", "DEFCON admin token for seeding flows", process.env.DEFCON_ADMIN_TOKEN)
     .option("--port <n>", "API server port", (v: string) => Number.parseInt(v, 10), 8080)
     .action(async (opts) => {
@@ -79,7 +80,7 @@ export function buildProgram(): Command {
           seedResult = await loadSeed(opts.seed as string, {
             defconUrl: opts.defconUrl as string,
             db: seedDb,
-            adminToken: opts.adminToken as string | undefined,
+            adminToken: opts.adminToken,
           });
         } catch (err) {
           console.error(`[norad] Seed failed: ${(err as Error).message}`);
@@ -143,7 +144,7 @@ export function buildProgram(): Command {
       const { GenericSourceAdapter } = await import("../sources/generic-adapter.js");
 
       const pool = new Pool(opts.workers);
-      const defcon = new DefconClient({ url: opts.defconUrl });
+      const defcon = new DefconClient({ url: opts.defconUrl, workerToken: opts.workerToken });
       const dispatcher = new ClaudeCodeDispatcher();
 
       // Adapters: bridge drizzle repo method names to AppDeps interface
@@ -483,15 +484,14 @@ export function buildProgram(): Command {
     )
     .argument("<path>", "Path to the seed JSON file")
     .option("--defcon-url <url>", "DEFCON server URL", "http://localhost:3000")
-    .option("--admin-token <token>", "DEFCON admin token for seeding flows", process.env.DEFCON_ADMIN_TOKEN)
     .requiredOption(
       "--db <path>",
       "Local SQLite database path (required — use a dedicated seed DB, not the live norad.db)",
     )
-    .action(async (seedPath: string, opts: { defconUrl: string; db: string; adminToken?: string }) => {
+    .action(async (seedPath: string, opts: { defconUrl: string; db: string }) => {
       const { runSeed } = await import("./seed-action.js");
       try {
-        await runSeed({ seedPath, defconUrl: opts.defconUrl, db: opts.db, adminToken: opts.adminToken });
+        await runSeed({ seedPath, defconUrl: opts.defconUrl, db: opts.db });
       } catch (err) {
         console.error(`[norad] Seed failed: ${err instanceof Error ? err.message : err}`);
         process.exit(1);
