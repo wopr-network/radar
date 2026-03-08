@@ -150,8 +150,6 @@ export function buildProgram(): Command {
       const { LinearSourceAdapter } = await import("../sources/linear-adapter.js");
       const { GenericSourceAdapter } = await import("../sources/generic-adapter.js");
 
-      const { DrizzleEntityActivityRepo } = await import("../db/repos/drizzle-entity-activity-repo.js");
-
       const pool = new Pool(opts.workers);
       const defcon = new DefconClient({ url: opts.defconUrl, workerToken: opts.workerToken });
       const ingestor = new Ingestor(entityMapRepo, defcon);
