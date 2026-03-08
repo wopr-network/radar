@@ -18,30 +18,32 @@ function toRow(raw: typeof entityActivity.$inferSelect): ActivityRow {
 export class DrizzleEntityActivityRepo implements IEntityActivityRepo {
   constructor(private db: RadarDb) {}
 
-  nextSeq(entityId: string): number {
-    const row = this.db
-      .select({ maxSeq: sql<number>`MAX(seq)` })
-      .from(entityActivity)
-      .where(eq(entityActivity.entityId, entityId))
-      .get();
-    return (row?.maxSeq ?? -1) + 1;
-  }
-
-  insert(input: Omit<ActivityRow, "id" | "createdAt">): ActivityRow {
+  insert(input: Omit<ActivityRow, "id" | "seq" | "createdAt">): ActivityRow {
     const id = crypto.randomUUID();
     const now = Date.now();
-    this.db
-      .insert(entityActivity)
-      .values({
-        id,
-        entityId: input.entityId,
-        slotId: input.slotId,
-        seq: input.seq,
-        type: input.type,
-        data: JSON.stringify(input.data),
-        createdAt: now,
-      })
-      .run();
+    // better-sqlite3 is single-writer; wrapping in a transaction ensures
+    // nextSeq + insert are atomic so concurrent slots can't race for the same seq.
+    // The UNIQUE (entity_id, seq) constraint is the hard guard — this transaction
+    // prevents the gap between computing seq and writing it.
+    this.db.transaction((tx) => {
+      const seqRow = tx
+        .select({ maxSeq: sql<number>`MAX(seq)` })
+        .from(entityActivity)
+        .where(eq(entityActivity.entityId, input.entityId))
+        .get();
+      const seq = (seqRow?.maxSeq ?? -1) + 1;
+      tx.insert(entityActivity)
+        .values({
+          id,
+          entityId: input.entityId,
+          slotId: input.slotId,
+          seq,
+          type: input.type,
+          data: JSON.stringify(input.data),
+          createdAt: now,
+        })
+        .run();
+    });
     const row = this.db.select().from(entityActivity).where(eq(entityActivity.id, id)).get();
     if (!row) throw new Error("Insert failed");
     return toRow(row);
@@ -87,9 +89,7 @@ export class DrizzleEntityActivityRepo implements IEntityActivityRepo {
       attemptNum++;
     }
 
-    return (
-      "Prior work on this entity:\n\n" + attempts.join("\n\n") + "\n\nPlease pick up where the last attempt left off."
-    );
+    return `Prior work on this entity:\n\n${attempts.join("\n\n")}\n\nPlease pick up where the last attempt left off.`;
   }
 
   deleteByEntity(entityId: string): void {

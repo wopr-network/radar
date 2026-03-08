@@ -11,11 +11,11 @@ export interface ActivityRow {
 }
 
 export interface IEntityActivityRepo {
-  /** Returns the next sequence number for the given entity (0 if no rows exist). */
-  nextSeq(entityId: string): number;
-
-  /** Inserts a new activity row and returns the persisted row. */
-  insert(input: Omit<ActivityRow, "id" | "createdAt">): ActivityRow;
+  /**
+   * Atomically computes the next seq and inserts the row.
+   * seq is managed internally — callers do not supply it.
+   */
+  insert(input: Omit<ActivityRow, "id" | "seq" | "createdAt">): ActivityRow;
 
   /**
    * Returns all activity rows for the entity in ascending seq order.
