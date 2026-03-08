@@ -4,6 +4,7 @@
       "name": "engineering",
       "description": "WOPR engineering flow — 8 states, 9 transitions, Handlebars prompt templates.",
       "initialState": "backlog",
+      "discipline": "engineering",
       "maxConcurrent": 4,
       "maxConcurrentPerRepo": 2,
       "states": [
@@ -13,35 +14,30 @@
         },
         {
           "name": "architecting",
-          "agentRole": "architect",
           "modelTier": "opus",
           "mode": "active",
           "promptTemplate": "You are an architect. Analyze issue {{issueKey}} and write a detailed implementation spec. Post the spec as a comment on the Linear issue. If the issue requires UI design work, signal design_needed. Otherwise, signal spec_ready."
         },
         {
           "name": "ui_designing",
-          "agentRole": "designer",
           "modelTier": "opus",
           "mode": "active",
           "promptTemplate": "You are a UI designer. Create design specs for issue {{issueKey}} based on the architect's spec. Post the design as a comment on the Linear issue, then signal design_ready."
         },
         {
           "name": "coding",
-          "agentRole": "coder",
           "modelTier": "sonnet",
           "mode": "active",
           "promptTemplate": "You are a coder. Implement issue {{issueKey}} following the spec. Create a PR, then signal pr_created."
         },
         {
           "name": "reviewing",
-          "agentRole": "reviewer",
           "modelTier": "sonnet",
           "mode": "active",
           "promptTemplate": "You are a reviewer. Review the PR for issue {{issueKey}}. If clean, signal clean. If issues found, signal issues."
         },
         {
           "name": "fixing",
-          "agentRole": "fixer",
           "modelTier": "sonnet",
           "mode": "active",
           "promptTemplate": "You are a fixer. Address review comments on the PR for issue {{issueKey}}. Push fixes, then signal fixes_pushed. If unresolvable, signal cant_resolve."

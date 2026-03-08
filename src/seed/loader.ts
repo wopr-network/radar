@@ -87,6 +87,12 @@ export async function loadSeed(seedPath: string, deps: LoadSeedDeps): Promise<Lo
   ensureSeedTables(deps.db);
 
   for (const flow of seed.flows) {
+    if (!flow.discipline) {
+      console.warn(
+        `[radar] WARNING: flow "${flow.name}" has no discipline — workers will not claim its entities. ` +
+          `Add "discipline": "<role>" to the flow definition.`,
+      );
+    }
     // PUT /api/flows/:id is idempotent — creates the flow if absent, updates it if already present.
     const res = await fetch(`${deps.defconUrl}/api/flows/${encodeURIComponent(flow.name)}`, {
       method: "PUT",
@@ -98,11 +104,11 @@ export async function loadSeed(seedPath: string, deps: LoadSeedDeps): Promise<Lo
         description: flow.description,
         definition: {
           initialState: flow.initialState,
+          discipline: flow.discipline,
           maxConcurrent: flow.maxConcurrent,
           maxConcurrentPerRepo: flow.maxConcurrentPerRepo,
           states: flow.states.map((s) => ({
             name: s.name,
-            agentRole: s.agentRole,
             modelTier: s.modelTier,
             mode: s.mode,
             promptTemplate: s.promptTemplate,
