@@ -18,6 +18,16 @@
     },
     "./package.json": "./package.json"
   },
+  "publishConfig": {
+    "access": "public"
+  },
+  "release": {
+    "extends": "@wopr-network/semantic-release-config"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/wopr-network/norad.git"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "check": "tsc -p tsconfig.json --noEmit && biome check src",
