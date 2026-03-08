@@ -1,14 +1,18 @@
 #!/usr/bin/env node
 import { randomUUID } from "node:crypto";
+import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import { Command } from "commander";
 import { renderWorkerPrompt } from "./worker-prompt.js";
+
+const require = createRequire(import.meta.url);
+const { version } = require("../../package.json") as { version: string };
 
 export const VALID_DISCIPLINES = ["engineering", "devops", "qa", "security"] as const;
 
 export function buildProgram(): Command {
   const program = new Command();
-  program.name("radar").description("The only winning move is to have gates.").version("0.1.0");
+  program.name("radar").description("The only winning move is to have gates.").version(version);
 
   program
     .command("run")
@@ -142,7 +146,7 @@ export function buildProgram(): Command {
 
       const { Pool } = await import("../pool/pool.js");
       const { DefconClient } = await import("../defcon/client.js");
-      const { ClaudeCodeDispatcher } = await import("../dispatcher/claude-code-dispatcher.js");
+      const { SdkDispatcher } = await import("../dispatcher/sdk-dispatcher.js");
       const { DrizzleEntityActivityRepo } = await import("../db/repos/drizzle-entity-activity-repo.js");
       const { RunLoop } = await import("../run-loop/run-loop.js");
       const { createServer } = await import("../api/server.js");
@@ -153,8 +157,8 @@ export function buildProgram(): Command {
       const pool = new Pool(opts.workers);
       const defcon = new DefconClient({ url: opts.defconUrl, workerToken: opts.workerToken });
       const ingestor = new Ingestor(entityMapRepo, defcon);
-      const dispatcher = new ClaudeCodeDispatcher();
       const activityRepo = new DrizzleEntityActivityRepo(radarDb);
+      const dispatcher = new SdkDispatcher(activityRepo);
 
       // Adapters: bridge drizzle repo method names to AppDeps interface
       const sourceRepo = {
