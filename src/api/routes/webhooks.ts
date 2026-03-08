@@ -9,8 +9,8 @@ export function registerWebhookRoutes(
 ): void {
   router.add("POST", "/webhooks/:sourceId", async (ctx) => {
     const source = await sourceRepo.findById(ctx.params.sourceId);
-    if (!source) return { status: 404, body: { error: "Source not found" } };
-    if (!source.enabled) return { status: 400, body: { error: "Source is disabled" } };
+    if (!source) return { status: 401, body: { error: "Unauthorized" } };
+    if (!source.enabled) return { status: 401, body: { error: "Unauthorized" } };
 
     const secret =
       typeof source.config.secret === "string" && source.config.secret.length > 0 ? source.config.secret : undefined;
@@ -22,7 +22,7 @@ export function registerWebhookRoutes(
 
       const result = verifyWebhookSignature(ctx.rawBody, secret, sig);
       if (!result.valid) {
-        return { status: 401, body: { error: result.error } };
+        return { status: 401, body: { error: "Unauthorized" } };
       }
     }
 

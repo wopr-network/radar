@@ -30,6 +30,11 @@ export function verifyWebhookSignature(
   // Strip "sha256=" prefix if present (GitHub format)
   const signature = signatureHeaderValue.startsWith("sha256=") ? signatureHeaderValue.slice(7) : signatureHeaderValue;
 
+  // Validate hex format before converting to prevent silent truncation
+  if (!/^[0-9a-fA-F]+$/.test(signature) || signature.length % 2 !== 0) {
+    return { valid: false, error: "Invalid signature" };
+  }
+
   const expected = createHmac("sha256", secret).update(rawBody).digest("hex");
 
   const sigBuffer = Buffer.from(signature, "hex");
