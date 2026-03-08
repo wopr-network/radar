@@ -1,6 +1,6 @@
 {
   "name": "@wopr-network/radar",
-  "version": "1.7.2",
+  "version": "1.7.3",
   "type": "module",
   "engines": {
     "node": ">=24.0.0"
