@@ -215,7 +215,9 @@ export class RunLoop {
         }
 
         if (response.next_action === "continue") {
-          currentPrompt = response.prompt ?? currentPrompt;
+          const history = this.config.activityRepo.getSummary(claim.entity_id);
+          const basePrompt = response.prompt ?? currentPrompt;
+          currentPrompt = history ? `${basePrompt}\n\n---\n${history}` : basePrompt;
           currentSignal = undefined;
           currentArtifacts = undefined;
           continue;

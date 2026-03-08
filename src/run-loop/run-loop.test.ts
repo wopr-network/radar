@@ -1,0 +1,121 @@
+import { describe, expect, it, vi } from "vitest";
+import type { IEntityActivityRepo } from "../db/repos/i-entity-activity-repo.js";
+import type { Dispatcher, WorkerResult } from "../dispatcher/types.js";
+import { Pool } from "../pool/pool.js";
+import { RunLoop } from "./run-loop.js";
+import type { RunLoopConfig } from "./types.js";
+
+function makeActivityRepo(summary: string): IEntityActivityRepo {
+  return {
+    insert: vi
+      .fn()
+      .mockReturnValue({ id: "x", entityId: "e1", slotId: "s1", seq: 0, type: "start", data: {}, createdAt: 0 }),
+    getByEntity: vi.fn().mockReturnValue([]),
+    getSummary: vi.fn().mockReturnValue(summary),
+    deleteByEntity: vi.fn(),
+  };
+}
+
+function makeDefcon(responses: object[]) {
+  const iter = responses[Symbol.iterator]();
+  return {
+    claim: vi.fn().mockImplementation(() => {
+      const { value, done } = iter.next();
+      if (done) return Promise.resolve({ retry_after_ms: 50 });
+      return Promise.resolve(value);
+    }),
+    report: vi.fn().mockResolvedValue(undefined),
+  } as unknown as import("../defcon/client.js").DefconClient;
+}
+
+function makeDispatcher(result: WorkerResult): Dispatcher {
+  return { dispatch: vi.fn().mockResolvedValue(result) };
+}
+
+function makeConfig(overrides: Partial<RunLoopConfig> = {}): RunLoopConfig {
+  return {
+    pool: new Pool(1),
+    defcon: makeDefcon([{ retry_after_ms: 50 }]),
+    dispatcher: makeDispatcher({ signal: "pr_created", artifacts: {}, exitCode: 0 }),
+    activityRepo: makeActivityRepo(""),
+    role: "engineering",
+    pollIntervalMs: 5,
+    ...overrides,
+  };
+}
+
+describe("RunLoop — activity history injection on continue", () => {
+  it("prepends history to retry prompt when getSummary returns non-empty", async () => {
+    const history = "Prior work on this entity:\n\nAttempt 1:\n  - Called tool: Read";
+    const activityRepo = makeActivityRepo(history);
+
+    const firstClaim = {
+      entity_id: "e-1",
+      prompt: "Do the work",
+      flow: "engineering",
+      entity_type: "issue",
+    };
+
+    // Sequence: first claim → dispatch returns pr_created → defcon.report is called
+    // To test "continue": defcon.report returns next_action: continue, then done
+    let reportCallCount = 0;
+    const dispatcher = makeDispatcher({ signal: "pr_created", artifacts: { prNumber: 42 }, exitCode: 0 });
+    const defcon = {
+      claim: vi.fn().mockResolvedValueOnce(firstClaim).mockResolvedValue({ retry_after_ms: 50 }),
+      report: vi.fn().mockImplementation(() => {
+        reportCallCount++;
+        if (reportCallCount === 1) {
+          return Promise.resolve({ next_action: "continue", prompt: "Please retry" });
+        }
+        return Promise.resolve({ next_action: "done" });
+      }),
+    } as unknown as import("../defcon/client.js").DefconClient;
+
+    const config = makeConfig({ pool: new Pool(1), defcon, dispatcher, activityRepo });
+    const loop = new RunLoop(config);
+    loop.start();
+
+    // Wait for two dispatch calls (initial + retry)
+    await vi.waitFor(() => expect(dispatcher.dispatch).toHaveBeenCalledTimes(2), { timeout: 3000 });
+    await loop.stop();
+
+    const secondCallPrompt = vi.mocked(dispatcher.dispatch).mock.calls[1]?.[0];
+    expect(secondCallPrompt).toContain("Please retry");
+    expect(secondCallPrompt).toContain(history);
+    expect(activityRepo.getSummary).toHaveBeenCalledWith("e-1");
+  });
+
+  it("passes retry prompt unchanged when getSummary returns empty string", async () => {
+    const activityRepo = makeActivityRepo("");
+
+    const firstClaim = {
+      entity_id: "e-2",
+      prompt: "Original prompt",
+      flow: "engineering",
+      entity_type: "issue",
+    };
+
+    let reportCallCount = 0;
+    const dispatcher = makeDispatcher({ signal: "pr_created", artifacts: {}, exitCode: 0 });
+    const defcon = {
+      claim: vi.fn().mockResolvedValueOnce(firstClaim).mockResolvedValue({ retry_after_ms: 50 }),
+      report: vi.fn().mockImplementation(() => {
+        reportCallCount++;
+        if (reportCallCount === 1) {
+          return Promise.resolve({ next_action: "continue", prompt: "Retry please" });
+        }
+        return Promise.resolve({ next_action: "done" });
+      }),
+    } as unknown as import("../defcon/client.js").DefconClient;
+
+    const config = makeConfig({ pool: new Pool(1), defcon, dispatcher, activityRepo });
+    const loop = new RunLoop(config);
+    loop.start();
+
+    await vi.waitFor(() => expect(dispatcher.dispatch).toHaveBeenCalledTimes(2), { timeout: 3000 });
+    await loop.stop();
+
+    const secondCallPrompt = vi.mocked(dispatcher.dispatch).mock.calls[1]?.[0];
+    expect(secondCallPrompt).toBe("Retry please");
+  });
+});
