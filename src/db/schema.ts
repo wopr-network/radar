@@ -1,4 +1,4 @@
-import { integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 export const sources = sqliteTable("sources", {
   id: text("id").primaryKey(),
@@ -46,6 +46,20 @@ export const workers = sqliteTable("workers", {
   lastHeartbeat: integer("last_heartbeat").notNull(),
   createdAt: integer("created_at").notNull(),
 });
+
+export const entityActivity = sqliteTable(
+  "entity_activity",
+  {
+    id: text("id").primaryKey(),
+    entityId: text("entity_id").notNull(),
+    slotId: text("slot_id").notNull(),
+    seq: integer("seq").notNull(),
+    type: text("type").notNull(), // "start" | "tool_use" | "text" | "result"
+    data: text("data").notNull(), // JSON blob
+    createdAt: integer("created_at").notNull(),
+  },
+  (t) => [index("entity_activity_entity_id_idx").on(t.entityId)],
+);
 
 export const entityMap = sqliteTable(
   "entity_map",
