@@ -10,14 +10,14 @@ vi.mock("better-sqlite3", () => ({
 
 describe("norad seed command (runSeed)", () => {
   afterEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
   });
 
   it("should call loadSeed with correct path and deps", async () => {
     const { loadSeed } = await import("../seed/loader.js");
     const BetterSqlite3 = (await import("better-sqlite3")).default;
 
-    const mockDbInstance = { close: vi.fn() };
+    const mockDbInstance = { close: vi.fn(), pragma: vi.fn() };
     vi.mocked(BetterSqlite3).mockReturnValue(mockDbInstance as never);
     vi.mocked(loadSeed).mockResolvedValue({ flows: 2, sources: 1, watches: 1 });
 
@@ -37,7 +37,7 @@ describe("norad seed command (runSeed)", () => {
     const { loadSeed } = await import("../seed/loader.js");
     const BetterSqlite3 = (await import("better-sqlite3")).default;
 
-    const mockDbInstance = { close: vi.fn() };
+    const mockDbInstance = { close: vi.fn(), pragma: vi.fn() };
     vi.mocked(BetterSqlite3).mockReturnValue(mockDbInstance as never);
     vi.mocked(loadSeed).mockResolvedValue({ flows: 3, sources: 2, watches: 4 });
 
@@ -56,7 +56,7 @@ describe("norad seed command (runSeed)", () => {
     const { loadSeed } = await import("../seed/loader.js");
     const BetterSqlite3 = (await import("better-sqlite3")).default;
 
-    const mockDbInstance = { close: vi.fn() };
+    const mockDbInstance = { close: vi.fn(), pragma: vi.fn() };
     vi.mocked(BetterSqlite3).mockReturnValue(mockDbInstance as never);
     vi.mocked(loadSeed).mockRejectedValue(new Error("bad seed"));
 

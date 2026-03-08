@@ -9,6 +9,8 @@ export interface RunSeedOpts {
 
 export async function runSeed(opts: RunSeedOpts): Promise<void> {
   const db = new Database(opts.db);
+  db.pragma("journal_mode = WAL");
+  db.pragma("foreign_keys = ON");
   try {
     const result = await loadSeed(opts.seedPath, { defconUrl: opts.defconUrl, db });
     console.log(`[norad] Seeded: ${result.flows} flows, ${result.sources} sources, ${result.watches} watches`);
