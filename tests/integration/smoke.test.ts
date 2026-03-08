@@ -23,6 +23,7 @@ import type { DefconClient } from "../../src/defcon/client.js";
 import type { ClaimResponse, ReportResponse } from "../../src/defcon/types.js";
 import type { Dispatcher, DispatchOpts, WorkerResult } from "../../src/dispatcher/types.js";
 import { Ingestor } from "../../src/ingestion/ingestor.js";
+import { GenericSourceAdapter, SourceAdapterRegistry } from "../../src/sources/index.js";
 import { Pool } from "../../src/pool/pool.js";
 import { RunLoop } from "../../src/run-loop/run-loop.js";
 
@@ -254,25 +255,15 @@ describe("Integration smoke test", () => {
     // 4. Ingestor wired to mock DEFCON
     const ingestor = new Ingestor(entityMapRepo, mockDefcon);
 
-    // 5. onWebhook: simple watch matcher
-    const onWebhook = async (sourceId: string, payload: unknown) => {
-      const watches = watchRepo.listBySource(sourceId);
-      for (const w of watches) {
-        if (!w.enabled) continue;
-        await ingestor.ingest({
-          sourceId,
-          externalId: (payload as Record<string, unknown>)?.externalId
-            ? String((payload as Record<string, unknown>).externalId)
-            : `evt-${Date.now()}`,
-          type: "new",
-          flowName: String((w.actionConfig as Record<string, unknown>).flowName ?? "default"),
-          payload: payload as Record<string, unknown> | undefined,
-        });
-      }
+    // 5. onWebhook: the route adapter already parsed the event; just ingest it
+    const onWebhook = async (_sourceId: string, event: unknown) => {
+      await ingestor.ingest(event);
     };
 
     // 6. Create HTTP server
     pool = new Pool(2);
+    const adapterRegistry = new SourceAdapterRegistry();
+    adapterRegistry.register(new GenericSourceAdapter());
     const deps: AppDeps = {
       sourceRepo: adaptSourceRepo(sourceRepo),
       watchRepo: adaptWatchRepo(watchRepo),
@@ -281,6 +272,7 @@ describe("Integration smoke test", () => {
       pool,
       defconClient: mockDefcon,
       onWebhook,
+      adapterRegistry,
     };
 
     server = createServer(deps);
