@@ -227,12 +227,12 @@ describe("Integration smoke test", () => {
         claimCount++;
         if (claimCount === 1) {
           return {
-            workerId: "wkr-smoke",
-            entityId: "entity-smoke-1",
-            invocationId: "inv-smoke",
+            entity_id: "entity-smoke-1",
+            invocation_id: "inv-smoke",
             flow: "smoke-flow",
             stage: "do-work",
             prompt: "You are working on a smoke test",
+            context: null,
           } satisfies ClaimResponse;
         }
         return {

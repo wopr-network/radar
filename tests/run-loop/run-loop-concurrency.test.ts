@@ -95,9 +95,9 @@ describe("RunLoop concurrency enforcement", () => {
     let reportCallCount = 0;
     const defcon = createMockDefcon({
       claim: vi.fn(async () => ({
-        workerId: "w3",
-        entityId: "e3",
-        invocationId: "inv3",
+        
+        entity_id: "e3",
+        invocation_id: "inv3",
         flow: "wopr-changeset",
         stage: "spec",
         prompt: "**Repo:** wopr-network/wopr\nDo something",
