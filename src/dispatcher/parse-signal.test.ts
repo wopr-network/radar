@@ -64,10 +64,16 @@ describe("parseSignal", () => {
   });
 
   it("extracts design_needed signal", () => {
-    const output = "Architect says design_needed for this issue";
+    const output = "design_needed";
     const result = parseSignal(output);
     expect(result.signal).toBe("design_needed");
     expect(result.artifacts).toEqual({});
+  });
+
+  it("does not match design_needed mid-line", () => {
+    const output = "Architect says design_needed for this issue";
+    const result = parseSignal(output);
+    expect(result.signal).toBe("unknown");
   });
 
   it("extracts design_ready signal", () => {
