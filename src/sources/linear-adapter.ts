@@ -11,17 +11,19 @@ export class LinearSourceAdapter implements SourceAdapter {
   parseEvent(payload: unknown, source: Source, watches: Watch[]): IngestEvent | null {
     for (const watch of watches) {
       if (!watch.enabled) continue;
-      const flowName = typeof watch.action_config.flowName === "string" ? watch.action_config.flowName : undefined;
+      const actionConfig = watch.action_config ?? {};
+      const flowName = typeof actionConfig.flowName === "string" ? actionConfig.flowName : undefined;
       if (!flowName) continue;
 
+      const filterConfig = watch.filter ?? {};
       const config: WebhookWatchConfig = {
         sourceId: source.id,
         flowName,
         filter: {
-          state: typeof watch.filter.state === "string" ? watch.filter.state : undefined,
-          labels: Array.isArray(watch.filter.labels) ? (watch.filter.labels as string[]) : undefined,
-          stateId: typeof watch.filter.stateId === "string" ? watch.filter.stateId : undefined,
-          labelIds: Array.isArray(watch.filter.labelIds) ? (watch.filter.labelIds as string[]) : undefined,
+          state: typeof filterConfig.state === "string" ? filterConfig.state : undefined,
+          labels: Array.isArray(filterConfig.labels) ? (filterConfig.labels as string[]) : undefined,
+          stateId: typeof filterConfig.stateId === "string" ? filterConfig.stateId : undefined,
+          labelIds: Array.isArray(filterConfig.labelIds) ? (filterConfig.labelIds as string[]) : undefined,
         },
       };
 

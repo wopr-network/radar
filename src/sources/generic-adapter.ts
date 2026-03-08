@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { getSignatureHeader, verifyWebhookSignature } from "../api/hmac.js";
 import type { Source, Watch } from "../api/types.js";
 import type { IngestEvent } from "../ingestion/types.js";
@@ -7,14 +8,23 @@ export class GenericSourceAdapter implements SourceAdapter {
   readonly type = "webhook";
 
   parseEvent(payload: unknown, source: Source, watches: Watch[]): IngestEvent | null {
-    const watch = watches.find((w) => w.enabled);
-    if (!watch) return null;
-
-    const flowName = typeof watch.action_config.flowName === "string" ? watch.action_config.flowName : undefined;
+    let flowName: string | undefined;
+    for (const w of watches) {
+      if (!w.enabled) continue;
+      const candidate = typeof w.action_config.flowName === "string" ? w.action_config.flowName : undefined;
+      if (candidate) {
+        flowName = candidate;
+        break;
+      }
+    }
     if (!flowName) return null;
 
     const p = payload as Record<string, unknown>;
-    const externalId = typeof p?.id === "string" ? p.id : `${source.id}-${Date.now()}`;
+    const payloadHash = createHash("sha256")
+      .update(JSON.stringify(payload ?? {}))
+      .digest("hex")
+      .slice(0, 16);
+    const externalId = typeof p?.id === "string" ? p.id : `${source.id}-${payloadHash}`;
 
     return {
       sourceId: source.id,

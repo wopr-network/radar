@@ -16,15 +16,25 @@ export function registerWebhookRoutes(
     if (!source.enabled) return { status: 401, body: { error: "Unauthorized" } };
 
     const adapter = adapterRegistry.get(source.type);
-    if (!adapter) return { status: 400, body: { error: `No adapter for source type: ${source.type}` } };
+    if (!adapter) return { status: 400, body: { error: "No adapter registered for source" } };
 
-    const sigResult = adapter.verifySignature(ctx.rawBody, source, ctx.headers);
+    let sigResult: { valid: boolean; error?: string };
+    try {
+      sigResult = adapter.verifySignature(ctx.rawBody, source, ctx.headers);
+    } catch {
+      return { status: 400, body: { error: "Signature verification failed" } };
+    }
     if (!sigResult.valid) return { status: 401, body: { error: "Unauthorized" } };
 
     const watches = await watchRepo.findBySourceId(source.id);
-    const event = adapter.parseEvent(ctx.body, source, watches);
+    let event: import("../../ingestion/types.js").IngestEvent | null;
+    try {
+      event = adapter.parseEvent(ctx.body, source, watches);
+    } catch {
+      return { status: 400, body: { error: "Failed to parse event" } };
+    }
 
-    if (event) {
+    if (event !== null && event !== undefined) {
       await onWebhook(ctx.params.sourceId, event);
       return { status: 200, body: { accepted: true } };
     }

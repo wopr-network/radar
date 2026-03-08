@@ -15,6 +15,9 @@ export class SourceAdapterRegistry {
   private adapters = new Map<string, SourceAdapter>();
 
   register(adapter: SourceAdapter): void {
+    if (this.adapters.has(adapter.type)) {
+      throw new Error(`Adapter for source type "${adapter.type}" is already registered`);
+    }
     this.adapters.set(adapter.type, adapter);
   }
 

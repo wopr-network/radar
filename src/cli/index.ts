@@ -405,7 +405,7 @@ export function buildProgram(): Command {
         pool,
         defconClient: defcon,
         adapterRegistry,
-        onWebhook: async (_sourceId: string, _event: unknown) => {},
+        onWebhook: async (_sourceId: string, _event: import("../ingestion/types.js").IngestEvent) => {},
       });
 
       await new Promise<void>((res) => apiServer.listen(port, res));
