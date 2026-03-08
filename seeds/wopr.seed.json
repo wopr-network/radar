@@ -123,56 +123,56 @@
   ],
   "watches": [
     {
-      "id": "watch-engineering-defcon",
+      "id": "watch-linear-defcon",
       "sourceId": "linear-wopr",
       "event": "issue.state_change",
       "flowName": "engineering",
       "filter": { "state": "Todo", "labels": ["defcon"] }
     },
     {
-      "id": "watch-engineering-norad",
+      "id": "watch-linear-norad",
       "sourceId": "linear-wopr",
       "event": "issue.state_change",
       "flowName": "engineering",
       "filter": { "state": "Todo", "labels": ["norad"] }
     },
     {
-      "id": "watch-engineering-wopr-platform",
+      "id": "watch-linear-wopr-platform",
       "sourceId": "linear-wopr",
       "event": "issue.state_change",
       "flowName": "engineering",
       "filter": { "state": "Todo", "labels": ["wopr-platform"] }
     },
     {
-      "id": "watch-engineering-wopr-platform-ui",
+      "id": "watch-linear-wopr-platform-ui",
       "sourceId": "linear-wopr",
       "event": "issue.state_change",
       "flowName": "engineering",
       "filter": { "state": "Todo", "labels": ["wopr-platform-ui"] }
     },
     {
-      "id": "watch-engineering-plugin-discord",
+      "id": "watch-linear-plugin-discord",
       "sourceId": "linear-wopr",
       "event": "issue.state_change",
       "flowName": "engineering",
       "filter": { "state": "Todo", "labels": ["plugin-discord"] }
     },
     {
-      "id": "watch-engineering-plugin-msteams",
+      "id": "watch-linear-plugin-msteams",
       "sourceId": "linear-wopr",
       "event": "issue.state_change",
       "flowName": "engineering",
       "filter": { "state": "Todo", "labels": ["plugin-msteams"] }
     },
     {
-      "id": "watch-engineering-plugin-whatsapp",
+      "id": "watch-linear-plugin-whatsapp",
       "sourceId": "linear-wopr",
       "event": "issue.state_change",
       "flowName": "engineering",
       "filter": { "state": "Todo", "labels": ["plugin-whatsapp"] }
     },
     {
-      "id": "watch-engineering-security",
+      "id": "watch-linear-security",
       "sourceId": "linear-wopr",
       "event": "issue.state_change",
       "flowName": "engineering",

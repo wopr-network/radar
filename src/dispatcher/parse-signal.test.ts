@@ -56,6 +56,34 @@ describe("parseSignal", () => {
     });
   });
 
+  it("extracts start signal", () => {
+    const output = "start";
+    const result = parseSignal(output);
+    expect(result.signal).toBe("start");
+    expect(result.artifacts).toEqual({});
+  });
+
+  it("extracts design_needed signal", () => {
+    const output = "Architect says design_needed for this issue";
+    const result = parseSignal(output);
+    expect(result.signal).toBe("design_needed");
+    expect(result.artifacts).toEqual({});
+  });
+
+  it("extracts design_ready signal", () => {
+    const output = "design_ready";
+    const result = parseSignal(output);
+    expect(result.signal).toBe("design_ready");
+    expect(result.artifacts).toEqual({});
+  });
+
+  it("extracts cant_resolve signal", () => {
+    const output = "cant_resolve";
+    const result = parseSignal(output);
+    expect(result.signal).toBe("cant_resolve");
+    expect(result.artifacts).toEqual({});
+  });
+
   it("returns unknown when no signal found", () => {
     const output = "Just some random output\nnothing here";
     const result = parseSignal(output);

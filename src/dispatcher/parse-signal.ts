@@ -41,6 +41,26 @@ const SIGNAL_PATTERNS: SignalPattern[] = [
     signal: "merged",
     extractArtifacts: (m) => ({ url: m[1] }),
   },
+  {
+    pattern: /\bstart\b/,
+    signal: "start",
+    extractArtifacts: () => ({}),
+  },
+  {
+    pattern: /\bdesign_needed\b/,
+    signal: "design_needed",
+    extractArtifacts: () => ({}),
+  },
+  {
+    pattern: /\bdesign_ready\b/,
+    signal: "design_ready",
+    extractArtifacts: () => ({}),
+  },
+  {
+    pattern: /\bcant_resolve\b/,
+    signal: "cant_resolve",
+    extractArtifacts: () => ({}),
+  },
 ];
 
 export function parseSignal(output: string): {
