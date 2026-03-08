@@ -23,8 +23,8 @@ function sleep(ms: number, signal?: AbortSignal): Promise<void> {
   });
 }
 
-function isWorkClaim(claim: ClaimResponse): claim is Extract<ClaimResponse, { entityId: string }> {
-  return "entityId" in claim;
+function isWorkClaim(claim: ClaimResponse): claim is Extract<ClaimResponse, { entity_id: string }> {
+  return "entity_id" in claim;
 }
 
 export class RunLoop {
@@ -143,7 +143,7 @@ export class RunLoop {
       if (repoActive >= this.config.maxConcurrentPerRepo) {
         try {
           await defcon.report({
-            entityId: claim.entityId,
+            entityId: claim.entity_id,
             signal: "crash",
             artifacts: { error: `per-repo concurrency limit reached for ${claimRepo}` },
           });
@@ -155,11 +155,11 @@ export class RunLoop {
       }
     }
 
-    const slot = pool.allocate(slotId, workerId, claim.entityId, claim.prompt, claimFlow, claimRepo);
+    const slot = pool.allocate(slotId, workerId, claim.entity_id, claim.prompt, claimFlow, claimRepo);
     if (!slot) {
       try {
         await defcon.report({
-          entityId: claim.entityId,
+          entityId: claim.entity_id,
           signal: "crash",
           artifacts: { error: "slot unavailable" },
         });
@@ -169,7 +169,7 @@ export class RunLoop {
     }
 
     try {
-      const modelTier = claim.modelTier ?? "sonnet";
+      const modelTier = "sonnet";
       let currentPrompt = claim.prompt;
       let currentSignal: string | undefined;
       let currentArtifacts: Record<string, unknown> | undefined;
@@ -184,7 +184,7 @@ export class RunLoop {
             const result = await dispatcher.dispatch(currentPrompt, {
               modelTier,
               workerId,
-              entityId: claim.entityId,
+              entityId: claim.entity_id,
             });
             currentSignal = result.signal;
             currentArtifacts = result.artifacts;
@@ -200,7 +200,7 @@ export class RunLoop {
         let response: ReportResponse;
         try {
           response = await defcon.report({
-            entityId: claim.entityId,
+            entityId: claim.entity_id,
             signal: currentSignal,
             artifacts: currentArtifacts,
           });

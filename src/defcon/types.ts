@@ -5,13 +5,12 @@ export type ClaimResponse =
       message: string;
     }
   | {
-      workerId: string;
-      entityId: string;
-      invocationId: string;
+      entity_id: string;
+      invocation_id: string;
       flow: string;
       stage: string;
       prompt: string;
-      modelTier?: "opus" | "sonnet" | "haiku";
+      context: Record<string, unknown> | null;
       worker_notice?: string;
     };
 

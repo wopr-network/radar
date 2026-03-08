@@ -119,9 +119,9 @@ describe("RunLoop abort-aware shutdown", () => {
         claimCount++;
         if (claimCount === 1) {
           return {
-            workerId: "wkr-1",
-            entityId: "ent-1",
-            invocationId: "inv-1",
+            
+            entity_id: "ent-1",
+            invocation_id: "inv-1",
             flow: "f",
             stage: "s",
             prompt: "go",

@@ -12,12 +12,12 @@ function mockDefconClient(response: ClaimResponse): DefconClient {
 }
 
 const workAssignment: ClaimResponse = {
-  workerId: "ignored-defcon-id",
-  entityId: "feat-99",
-  invocationId: "inv-1",
+  entity_id: "feat-99",
+  invocation_id: "inv-1",
   flow: "engineering",
   stage: "implement",
   prompt: "Fix the bug",
+  context: null,
 };
 
 const checkBack: ClaimResponse = {

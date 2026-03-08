@@ -34,9 +34,9 @@ describe("RunLoop", () => {
         claimCount++;
         if (claimCount === 1) {
           return {
-            workerId: "wkr-1",
-            entityId: "ent-1",
-            invocationId: "inv-1",
+            
+            entity_id: "ent-1",
+            invocation_id: "inv-1",
             flow: "test-flow",
             stage: "do-work",
             prompt: "Hello world",
@@ -98,9 +98,9 @@ describe("RunLoop", () => {
         claimCount++;
         if (claimCount === 1) {
           return {
-            workerId: "wkr-1",
-            entityId: "ent-1",
-            invocationId: "inv-1",
+            
+            entity_id: "ent-1",
+            invocation_id: "inv-1",
             flow: "test-flow",
             stage: "step-1",
             prompt: "First prompt",
@@ -162,9 +162,9 @@ describe("RunLoop", () => {
         claimCount++;
         if (claimCount === 1) {
           return {
-            workerId: "wkr-1",
-            entityId: "ent-1",
-            invocationId: "inv-1",
+            
+            entity_id: "ent-1",
+            invocation_id: "inv-1",
             flow: "test-flow",
             stage: "step-1",
             prompt: "Do work",
@@ -216,9 +216,9 @@ describe("RunLoop", () => {
         claimCount++;
         if (claimCount === 1) {
           return {
-            workerId: "wkr-1",
-            entityId: "ent-1",
-            invocationId: "inv-1",
+            
+            entity_id: "ent-1",
+            invocation_id: "inv-1",
             flow: "test-flow",
             stage: "step-1",
             prompt: "Crash me",
@@ -266,9 +266,9 @@ describe("RunLoop", () => {
     let dispatchResolved = false;
     const mockDefcon = createMockDefcon({
       claim: vi.fn(async () => ({
-        workerId: "wkr-1",
-        entityId: "ent-1",
-        invocationId: "inv-1",
+        
+        entity_id: "ent-1",
+        invocation_id: "inv-1",
         flow: "test-flow",
         stage: "step-1",
         prompt: "Slow work",
