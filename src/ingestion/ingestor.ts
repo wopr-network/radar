@@ -31,7 +31,7 @@ export class Ingestor {
       return;
     }
 
-    let response: { entityId: string };
+    let response: { id: string };
     try {
       response = await this.defcon.createEntity({
         flowName: event.flowName,
@@ -44,7 +44,7 @@ export class Ingestor {
     }
 
     // Update the sentinel row to the real entityId.
-    this.entityMapRepo.updateEntityId(event.sourceId, event.externalId, response.entityId);
+    this.entityMapRepo.updateEntityId(event.sourceId, event.externalId, response.id);
   }
 
   private async handleUpdate(event: IngestEvent): Promise<void> {
