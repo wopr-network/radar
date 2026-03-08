@@ -4,8 +4,8 @@ vi.mock("../seed/loader.js", () => ({
   loadSeed: vi.fn(),
 }));
 
-vi.mock("better-sqlite3", () => ({
-  default: vi.fn(),
+vi.mock("../db/index.js", () => ({
+  createDb: vi.fn(),
 }));
 
 describe("norad seed command (runSeed)", () => {
@@ -15,30 +15,32 @@ describe("norad seed command (runSeed)", () => {
 
   it("should call loadSeed with correct path and deps", async () => {
     const { loadSeed } = await import("../seed/loader.js");
-    const BetterSqlite3 = (await import("better-sqlite3")).default;
+    const { createDb } = await import("../db/index.js");
 
-    const mockDbInstance = { close: vi.fn(), pragma: vi.fn() };
-    vi.mocked(BetterSqlite3).mockReturnValue(mockDbInstance as never);
+    const mockClient = { close: vi.fn() };
+    const mockDb = { $client: mockClient };
+    vi.mocked(createDb).mockReturnValue(mockDb as never);
     vi.mocked(loadSeed).mockResolvedValue({ flows: 2, sources: 1, watches: 1 });
 
     const { runSeed } = await import("./seed-action.js");
 
     await runSeed({ seedPath: "seeds/test.seed.json", defconUrl: "http://localhost:3000", db: "test.db" });
 
-    expect(BetterSqlite3).toHaveBeenCalledWith("test.db");
+    expect(createDb).toHaveBeenCalledWith("test.db");
     expect(loadSeed).toHaveBeenCalledWith("seeds/test.seed.json", {
       defconUrl: "http://localhost:3000",
-      db: mockDbInstance,
+      db: mockDb,
     });
-    expect(mockDbInstance.close).toHaveBeenCalled();
+    expect(mockClient.close).toHaveBeenCalled();
   });
 
   it("should print summary on success", async () => {
     const { loadSeed } = await import("../seed/loader.js");
-    const BetterSqlite3 = (await import("better-sqlite3")).default;
+    const { createDb } = await import("../db/index.js");
 
-    const mockDbInstance = { close: vi.fn(), pragma: vi.fn() };
-    vi.mocked(BetterSqlite3).mockReturnValue(mockDbInstance as never);
+    const mockClient = { close: vi.fn() };
+    const mockDb = { $client: mockClient };
+    vi.mocked(createDb).mockReturnValue(mockDb as never);
     vi.mocked(loadSeed).mockResolvedValue({ flows: 3, sources: 2, watches: 4 });
 
     const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
@@ -54,10 +56,11 @@ describe("norad seed command (runSeed)", () => {
 
   it("should close db even on error", async () => {
     const { loadSeed } = await import("../seed/loader.js");
-    const BetterSqlite3 = (await import("better-sqlite3")).default;
+    const { createDb } = await import("../db/index.js");
 
-    const mockDbInstance = { close: vi.fn(), pragma: vi.fn() };
-    vi.mocked(BetterSqlite3).mockReturnValue(mockDbInstance as never);
+    const mockClient = { close: vi.fn() };
+    const mockDb = { $client: mockClient };
+    vi.mocked(createDb).mockReturnValue(mockDb as never);
     vi.mocked(loadSeed).mockRejectedValue(new Error("bad seed"));
 
     const { runSeed } = await import("./seed-action.js");
@@ -65,6 +68,6 @@ describe("norad seed command (runSeed)", () => {
     await expect(runSeed({ seedPath: "bad.json", defconUrl: "http://localhost:3000", db: "norad.db" })).rejects.toThrow(
       "bad seed",
     );
-    expect(mockDbInstance.close).toHaveBeenCalled();
+    expect(mockClient.close).toHaveBeenCalled();
   });
 });
