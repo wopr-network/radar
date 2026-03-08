@@ -32,7 +32,7 @@ export class SdkDispatcher implements Dispatcher {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeout);
 
-    let lastText = "";
+    const allTextBlocks: string[] = [];
 
     try {
       console.log(`[claude] [${slotId}] START entity=${entityId} model=${MODEL_MAP[modelTier]}`);
@@ -57,7 +57,7 @@ export class SdkDispatcher implements Dispatcher {
                 slotId,
               );
             } else if (block.type === "text" && block.text) {
-              lastText = block.text;
+              allTextBlocks.push(block.text);
               console.log(`[claude] [${slotId}] text "${block.text.slice(0, 200).replace(/\n/g, " ")}"`);
               await safeInsert(
                 this.activityRepo,
@@ -87,7 +87,7 @@ export class SdkDispatcher implements Dispatcher {
             return { signal: "crash", artifacts: {}, exitCode: 1 };
           }
 
-          const { signal, artifacts } = parseSignal(lastText);
+          const { signal, artifacts } = parseSignal(allTextBlocks.join("\n"));
           console.log(`[claude] [${slotId}] parsed signal=${signal}`);
           return {
             signal,
