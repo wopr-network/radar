@@ -8,7 +8,7 @@ export const VALID_DISCIPLINES = ["engineering", "devops", "qa", "security"] as 
 
 export function buildProgram(): Command {
   const program = new Command();
-  program.name("norad").description("The only winning move is to have gates.").version("0.1.0");
+  program.name("radar").description("The only winning move is to have gates.").version("0.1.0");
 
   program
     .command("run")
@@ -63,12 +63,12 @@ export function buildProgram(): Command {
       const { Ingestor } = await import("../ingestion/ingestor.js");
       const { sources: sourcesTable, watches: watchesTable } = await import("../db/schema.js");
 
-      const noradDb = createDb(":memory:");
-      const entityMapRepo = new DrizzleEntityMapRepository(noradDb);
-      const dbSourceRepo = new DbSourceRepo(noradDb);
-      const dbWatchRepo = new DbWatchRepo(noradDb);
-      const dbWorkerRepo = new DbWorkerRepo(noradDb);
-      const dbEventLogRepo = new DbEventLogRepo(noradDb);
+      const radarDb = createDb(":memory:");
+      const entityMapRepo = new DrizzleEntityMapRepository(radarDb);
+      const dbSourceRepo = new DbSourceRepo(radarDb);
+      const dbWatchRepo = new DbWatchRepo(radarDb);
+      const dbWorkerRepo = new DbWorkerRepo(radarDb);
+      const dbEventLogRepo = new DbEventLogRepo(radarDb);
 
       if (opts.seed) {
         const { createDb } = await import("../db/index.js");
@@ -86,7 +86,7 @@ export function buildProgram(): Command {
             adminToken: opts.adminToken,
           });
         } catch (err) {
-          console.error(`[norad] Seed failed: ${(err as Error).message}`);
+          console.error(`[radar] Seed failed: ${(err as Error).message}`);
           process.exit(1);
         }
 
@@ -98,7 +98,7 @@ export function buildProgram(): Command {
           const now = Math.floor(Date.now() / 1000);
           for (const source of seed.sources) {
             const { id, type, config, ...rest } = source;
-            noradDb
+            radarDb
               .insert(sourcesTable)
               .values({
                 id,
@@ -112,7 +112,7 @@ export function buildProgram(): Command {
               .run();
           }
           for (const watch of seed.watches) {
-            noradDb
+            radarDb
               .insert(watchesTable)
               .values({
                 id: watch.id,
@@ -131,12 +131,12 @@ export function buildProgram(): Command {
               .run();
           }
         } catch (err) {
-          console.error(`[norad] Failed to populate API DB from seed: ${(err as Error).message}`);
+          console.error(`[radar] Failed to populate API DB from seed: ${(err as Error).message}`);
           process.exit(1);
         }
 
         console.log(
-          `[norad] Seed loaded: ${seedResult.flows} flows, ${seedResult.sources} sources, ${seedResult.watches} watches`,
+          `[radar] Seed loaded: ${seedResult.flows} flows, ${seedResult.sources} sources, ${seedResult.watches} watches`,
         );
       }
 
@@ -424,7 +424,7 @@ export function buildProgram(): Command {
       });
 
       await new Promise<void>((res) => apiServer.listen(port, res));
-      console.log(`[norad] API server listening on port ${port}`);
+      console.log(`[radar] API server listening on port ${port}`);
 
       const loop = new RunLoop({
         pool,
@@ -439,7 +439,7 @@ export function buildProgram(): Command {
       });
 
       console.log(
-        `[norad] Starting ${opts.workers} worker slots — role: ${opts.role}${opts.flow ? ` — flow: ${opts.flow}` : ""}${opts.worker ? ` — worker: ${opts.worker}` : ""}`,
+        `[radar] Starting ${opts.workers} worker slots — role: ${opts.role}${opts.flow ? ` — flow: ${opts.flow}` : ""}${opts.worker ? ` — worker: ${opts.worker}` : ""}`,
       );
       loop.start();
 
@@ -447,10 +447,10 @@ export function buildProgram(): Command {
       const shutdown = async () => {
         if (shuttingDown) return;
         shuttingDown = true;
-        console.log("[norad] Shutting down gracefully...");
+        console.log("[radar] Shutting down gracefully...");
         await loop.stop();
         await new Promise<void>((res) => apiServer.close(() => res()));
-        console.log("[norad] All slots stopped.");
+        console.log("[radar] All slots stopped.");
         process.exit(0);
       };
 
@@ -495,14 +495,14 @@ export function buildProgram(): Command {
     .option("--defcon-url <url>", "DEFCON server URL", "http://localhost:3000")
     .requiredOption(
       "--db <path>",
-      "Local SQLite database path (required — use a dedicated seed DB, not the live norad.db)",
+      "Local SQLite database path (required — use a dedicated seed DB, not the live radar.db)",
     )
     .action(async (seedPath: string, opts: { defconUrl: string; db: string }) => {
       const { runSeed } = await import("./seed-action.js");
       try {
         await runSeed({ seedPath, defconUrl: opts.defconUrl, db: opts.db });
       } catch (err) {
-        console.error(`[norad] Seed failed: ${err instanceof Error ? err.message : err}`);
+        console.error(`[radar] Seed failed: ${err instanceof Error ? err.message : err}`);
         process.exit(1);
       }
     });

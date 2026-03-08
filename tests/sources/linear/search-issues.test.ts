@@ -19,7 +19,7 @@ describe("LinearClient.searchIssues", () => {
         id: "issue-1",
         identifier: "WOP-100",
         title: "Test issue",
-        description: "**Repo:** wopr-network/norad\n\nBody",
+        description: "**Repo:** wopr-network/radar\n\nBody",
         state: { type: "unstarted", name: "Todo" },
         labels: { nodes: [{ name: "defcon" }] },
       },
@@ -35,7 +35,7 @@ describe("LinearClient.searchIssues", () => {
     const result = await client.searchIssues({ stateName: "Todo" });
     expect(result).toHaveLength(1);
     expect(result[0].identifier).toBe("WOP-100");
-    expect(result[0].description).toBe("**Repo:** wopr-network/norad\n\nBody");
+    expect(result[0].description).toBe("**Repo:** wopr-network/radar\n\nBody");
     expect(result[0].labels).toEqual([{ name: "defcon" }]);
   });
 

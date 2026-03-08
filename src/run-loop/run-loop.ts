@@ -100,7 +100,7 @@ export class RunLoop {
         await this.claimAndProcess(slotId, workerId);
       } catch (err) {
         if (!this.signal.aborted) {
-          console.error(`[norad] slot ${slotId} claim error:`, safeErrorMessage(err));
+          console.error(`[radar] slot ${slotId} claim error:`, safeErrorMessage(err));
           await sleep(this.pollIntervalMs, this.signal);
         }
       }
@@ -207,7 +207,7 @@ export class RunLoop {
           });
         } catch (err) {
           if (!this.signal.aborted) {
-            console.error(`[norad] slot ${slotId} report error:`, safeErrorMessage(err));
+            console.error(`[radar] slot ${slotId} report error:`, safeErrorMessage(err));
             await sleep(this.pollIntervalMs, this.signal);
             continue;
           }

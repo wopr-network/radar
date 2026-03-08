@@ -24,7 +24,7 @@ export function renderWorkerPrompt(opts: WorkerPromptOpts): string {
     null,
     2,
   );
-  return `You are a NORAD worker agent.
+  return `You are a RADAR worker agent.
 
 Worker ID: ${opts.workerId}
 Discipline: ${opts.discipline}

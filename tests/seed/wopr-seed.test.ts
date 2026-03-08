@@ -58,7 +58,7 @@ describe("seeds/wopr.seed.json", () => {
   it("has watches for all WOPR domain labels", () => {
     const expectedLabels = [
       "defcon",
-      "norad",
+      "radar",
       "wopr-platform",
       "wopr-platform-ui",
       "plugin-discord",

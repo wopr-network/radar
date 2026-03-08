@@ -8,7 +8,7 @@ vi.mock("../db/index.js", () => ({
   createDb: vi.fn(),
 }));
 
-describe("norad seed command (runSeed)", () => {
+describe("radar seed command (runSeed)", () => {
   afterEach(() => {
     vi.resetAllMocks();
   });
@@ -46,7 +46,7 @@ describe("norad seed command (runSeed)", () => {
     const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
     const { runSeed } = await import("./seed-action.js");
-    await runSeed({ seedPath: "seeds/test.seed.json", defconUrl: "http://localhost:3000", db: "norad.db" });
+    await runSeed({ seedPath: "seeds/test.seed.json", defconUrl: "http://localhost:3000", db: "radar.db" });
 
     expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("3 flows"));
     expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("2 sources"));
@@ -65,7 +65,7 @@ describe("norad seed command (runSeed)", () => {
 
     const { runSeed } = await import("./seed-action.js");
 
-    await expect(runSeed({ seedPath: "bad.json", defconUrl: "http://localhost:3000", db: "norad.db" })).rejects.toThrow(
+    await expect(runSeed({ seedPath: "bad.json", defconUrl: "http://localhost:3000", db: "radar.db" })).rejects.toThrow(
       "bad seed",
     );
     expect(mockClient.close).toHaveBeenCalled();

@@ -1,7 +1,7 @@
 export { createServer } from "./api/server.js";
 export { ClaimHandler } from "./claim/index.js";
 export type { ExternalClaimRequest, ExternalClaimResponse } from "./claim/types.js";
-export type { NoradDb } from "./db/index.js";
+export type { RadarDb } from "./db/index.js";
 export { applySchema, createDb } from "./db/index.js";
 export { EventLogRepo } from "./db/repos/event-log-repo.js";
 export { SourceRepo } from "./db/repos/source-repo.js";

@@ -2,7 +2,7 @@ import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import * as schema from "./schema.js";
 
-export type NoradDb = ReturnType<typeof createDb>;
+export type RadarDb = ReturnType<typeof createDb>;
 
 function initSqlite(path: string): InstanceType<typeof Database> {
   const sqlite = new Database(path);

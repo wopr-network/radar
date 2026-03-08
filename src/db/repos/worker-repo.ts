@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import type { NoradDb } from "../index.js";
+import type { RadarDb } from "../index.js";
 import { workers } from "../schema.js";
 
 export interface RegisterWorkerInput {
@@ -34,7 +34,7 @@ function toRow(raw: typeof workers.$inferSelect): WorkerRow {
 }
 
 export class WorkerRepo {
-  constructor(private db: NoradDb) {}
+  constructor(private db: RadarDb) {}
 
   register(input: RegisterWorkerInput): WorkerRow {
     const id = crypto.randomUUID();

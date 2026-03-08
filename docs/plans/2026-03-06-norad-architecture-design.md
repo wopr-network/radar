@@ -1,13 +1,13 @@
-# NORAD Architecture Design
+# RADAR Architecture Design
 
 **Date:** 2026-03-06
 **Status:** Approved
 
 ## Overview
 
-NORAD is the stateful, DB-backed runtime adapter that marries DEFCON and WOPR. It speaks two protocols: DEFCON (REST — claim/report/entity creation) and workers (prompt in, signal + artifacts out). NORAD watches the world via **sources**, translates events into DEFCON protocol via **watches**, and manages **worker pools** that claim work from DEFCON and dispatch it to WOPR/Claude/Codex/whatever.
+RADAR is the stateful, DB-backed runtime adapter that marries DEFCON and WOPR. It speaks two protocols: DEFCON (REST — claim/report/entity creation) and workers (prompt in, signal + artifacts out). RADAR watches the world via **sources**, translates events into DEFCON protocol via **watches**, and manages **worker pools** that claim work from DEFCON and dispatch it to WOPR/Claude/Codex/whatever.
 
-DEFCON runs standalone. NORAD is a client.
+DEFCON runs standalone. RADAR is a client.
 
 ## 1. Architecture
 
@@ -15,7 +15,7 @@ One binary, two subsystems sharing a single SQLite database:
 
 ```
 ┌─────────────────────────────────────────────┐
-│                   NORAD                      │
+│                   RADAR                      │
 │                                              │
 │  ┌──────────────┐    ┌───────────────────┐   │
 │  │  Source       │    │  Worker Pool      │   │
@@ -87,7 +87,7 @@ Append-only log of all events processed.
 | source_id | TEXT FK | References sources.id |
 | watch_id | TEXT FK | References watches.id (nullable — unmatched events) |
 | raw_event | JSON | Original event payload |
-| action_taken | TEXT | What NORAD did (nullable if no match) |
+| action_taken | TEXT | What RADAR did (nullable if no match) |
 | defcon_response | JSON | DEFCON's response (nullable) |
 | created_at | INTEGER | Unix timestamp |
 
@@ -108,7 +108,7 @@ Registered worker instances.
 
 ## 3. API
 
-NORAD exposes a REST API for runtime management and an HTTP endpoint for webhook ingestion.
+RADAR exposes a REST API for runtime management and an HTTP endpoint for webhook ingestion.
 
 ### Webhook Ingestion
 
@@ -154,7 +154,7 @@ GET    /api/events             — query event log
 
 ## 4. Seed File
 
-One config file, owned by NORAD. NORAD splits it: flow definitions go to DEFCON via REST, sources and watches go to NORAD's local database.
+One config file, owned by RADAR. RADAR splits it: flow definitions go to DEFCON via REST, sources and watches go to RADAR's local database.
 
 ```json
 {
@@ -188,7 +188,7 @@ One config file, owned by NORAD. NORAD splits it: flow definitions go to DEFCON 
 }
 ```
 
-On startup, NORAD:
+On startup, RADAR:
 1. Reads the seed file
 2. Pushes flow definitions to DEFCON via `PUT /api/flows/:id`
 3. Upserts sources and watches into local SQLite
@@ -198,28 +198,28 @@ On startup, NORAD:
 
 ```
 Linear webhook fires
-  → NORAD receives on POST /webhooks/linear-prod
+  → RADAR receives on POST /webhooks/linear-prod
   → Watch "new-issue-to-engineering" matches
-  → NORAD calls DEFCON: POST /api/entities { flow: "engineering", externalId: "LIN-123" }
+  → RADAR calls DEFCON: POST /api/entities { flow: "engineering", externalId: "LIN-123" }
   → DEFCON creates entity in "architecting" state, runs onEnter gates
 
 Worker pool manager loop:
-  → NORAD calls DEFCON: POST /api/flows/engineering/claim { discipline: "engineering" }
+  → RADAR calls DEFCON: POST /api/flows/engineering/claim { discipline: "engineering" }
   → DEFCON returns { entityId: "...", prompt: "...", state: "architecting" }
-  → NORAD dispatches prompt to WOPR worker
+  → RADAR dispatches prompt to WOPR worker
   → WOPR returns { signal: "arch_approved", artifacts: { doc: "..." } }
-  → NORAD calls DEFCON: POST /api/entities/:id/report { signal: "arch_approved", artifacts: {...} }
+  → RADAR calls DEFCON: POST /api/entities/:id/report { signal: "arch_approved", artifacts: {...} }
   → DEFCON runs gate, transitions to "coding", returns { action: "continue", prompt: "..." }
-  → NORAD sends new prompt to same worker
+  → RADAR sends new prompt to same worker
   → Cycle continues until DEFCON returns { action: "waiting" }
-  → NORAD releases the slot
+  → RADAR releases the slot
 ```
 
 ## Design Decisions
 
 1. **SQLite + Drizzle** — single-file database, no external dependencies, Drizzle for type-safe queries.
 2. **One binary** — source watcher and worker pool run in the same process, share the DB.
-3. **REST everywhere** — NORAD speaks REST to DEFCON. DEFCON also keeps MCP transport as an option for Claude Code sessions.
+3. **REST everywhere** — RADAR speaks REST to DEFCON. DEFCON also keeps MCP transport as an option for Claude Code sessions.
 4. **Full CRUD API** — sources and watches are runtime-manageable, not just seed-file config.
-5. **Single seed file** — NORAD owns the config. Pushes flows to DEFCON, stores sources/watches locally.
-6. **DEFCON is standalone** — has no knowledge of external systems. NORAD is the membrane.
+5. **Single seed file** — RADAR owns the config. Pushes flows to DEFCON, stores sources/watches locally.
+6. **DEFCON is standalone** — has no knowledge of external systems. RADAR is the membrane.

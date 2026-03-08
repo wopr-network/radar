@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { applySchema } from "../../src/db/index.js";
-import type { NoradDb } from "../../src/db/index.js";
+import type { RadarDb } from "../../src/db/index.js";
 import { EventLogRepo } from "../../src/db/repos/event-log-repo.js";
 import { SourceRepo } from "../../src/db/repos/source-repo.js";
 import { WatchRepo } from "../../src/db/repos/watch-repo.js";
 
 describe("EventLogRepo", () => {
-  let db: NoradDb;
+  let db: RadarDb;
   let repo: EventLogRepo;
   let sourceId: string;
   let watchId: string;

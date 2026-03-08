@@ -16,7 +16,7 @@ export async function runSeed(opts: RunSeedOpts): Promise<void> {
       db,
       adminToken: opts.adminToken ?? process.env.DEFCON_ADMIN_TOKEN,
     });
-    console.log(`[norad] Seeded: ${result.flows} flows, ${result.sources} sources, ${result.watches} watches`);
+    console.log(`[radar] Seeded: ${result.flows} flows, ${result.sources} sources, ${result.watches} watches`);
   } finally {
     db.$client.close();
   }
