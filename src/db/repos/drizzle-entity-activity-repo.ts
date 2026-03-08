@@ -1,0 +1,98 @@
+import { and, asc, eq, gt, sql } from "drizzle-orm";
+import type { RadarDb } from "../index.js";
+import { entityActivity } from "../schema.js";
+import type { ActivityRow, IEntityActivityRepo } from "./i-entity-activity-repo.js";
+
+function toRow(raw: typeof entityActivity.$inferSelect): ActivityRow {
+  return {
+    id: raw.id,
+    entityId: raw.entityId,
+    slotId: raw.slotId,
+    seq: raw.seq,
+    type: raw.type as ActivityRow["type"],
+    data: JSON.parse(raw.data) as Record<string, unknown>,
+    createdAt: raw.createdAt,
+  };
+}
+
+export class DrizzleEntityActivityRepo implements IEntityActivityRepo {
+  constructor(private db: RadarDb) {}
+
+  nextSeq(entityId: string): number {
+    const row = this.db
+      .select({ maxSeq: sql<number>`MAX(seq)` })
+      .from(entityActivity)
+      .where(eq(entityActivity.entityId, entityId))
+      .get();
+    return (row?.maxSeq ?? -1) + 1;
+  }
+
+  insert(input: Omit<ActivityRow, "id" | "createdAt">): ActivityRow {
+    const id = crypto.randomUUID();
+    const now = Date.now();
+    this.db
+      .insert(entityActivity)
+      .values({
+        id,
+        entityId: input.entityId,
+        slotId: input.slotId,
+        seq: input.seq,
+        type: input.type,
+        data: JSON.stringify(input.data),
+        createdAt: now,
+      })
+      .run();
+    const row = this.db.select().from(entityActivity).where(eq(entityActivity.id, id)).get();
+    if (!row) throw new Error("Insert failed");
+    return toRow(row);
+  }
+
+  getByEntity(entityId: string, since?: number): ActivityRow[] {
+    const conditions =
+      since !== undefined
+        ? and(eq(entityActivity.entityId, entityId), gt(entityActivity.seq, since))
+        : eq(entityActivity.entityId, entityId);
+    return this.db.select().from(entityActivity).where(conditions).orderBy(asc(entityActivity.seq)).all().map(toRow);
+  }
+
+  getSummary(entityId: string): string {
+    const rows = this.getByEntity(entityId);
+    if (rows.length === 0) return "";
+
+    const bySlot = new Map<string, ActivityRow[]>();
+    for (const row of rows) {
+      const bucket = bySlot.get(row.slotId) ?? [];
+      bucket.push(row);
+      bySlot.set(row.slotId, bucket);
+    }
+
+    const attempts: string[] = [];
+    let attemptNum = 1;
+    for (const [, events] of bySlot) {
+      const lines: string[] = [`Attempt ${attemptNum}:`];
+      for (const event of events) {
+        if (event.type === "tool_use") {
+          const d = event.data as { name?: string; input?: unknown };
+          lines.push(`  - Called tool: ${d.name ?? "unknown"}(${JSON.stringify(d.input ?? {})})`);
+        } else if (event.type === "text") {
+          const d = event.data as { text?: string };
+          const excerpt = (d.text ?? "").slice(0, 200).replace(/\n/g, " ");
+          if (excerpt) lines.push(`  - Said: "${excerpt}${excerpt.length === 200 ? "…" : ""}"`);
+        } else if (event.type === "result") {
+          const d = event.data as { subtype?: string; cost_usd?: number };
+          lines.push(`  - Ended: ${d.subtype ?? "unknown"} (cost: $${(d.cost_usd ?? 0).toFixed(4)})`);
+        }
+      }
+      attempts.push(lines.join("\n"));
+      attemptNum++;
+    }
+
+    return (
+      "Prior work on this entity:\n\n" + attempts.join("\n\n") + "\n\nPlease pick up where the last attempt left off."
+    );
+  }
+
+  deleteByEntity(entityId: string): void {
+    this.db.delete(entityActivity).where(eq(entityActivity.entityId, entityId)).run();
+  }
+}
