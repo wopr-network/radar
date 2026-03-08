@@ -21,6 +21,7 @@ export function buildProgram(): Command {
     .option("--worker <type>", "Worker type identifier")
     .option("--seed <path>", "Seed file path")
     .option("--defcon-url <url>", "DEFCON server URL", "http://localhost:3000")
+    .option("--admin-token <token>", "DEFCON admin token for seeding flows", process.env.DEFCON_ADMIN_TOKEN)
     .option("--port <n>", "API server port", (v: string) => Number.parseInt(v, 10), 8080)
     .action(async (opts) => {
       if (Number.isNaN(opts.workers) || opts.workers <= 0) {
@@ -75,7 +76,11 @@ export function buildProgram(): Command {
         const seedDb = createDb(":memory:");
         let seedResult: { flows: number; sources: number; watches: number };
         try {
-          seedResult = await loadSeed(opts.seed as string, { defconUrl: opts.defconUrl as string, db: seedDb });
+          seedResult = await loadSeed(opts.seed as string, {
+            defconUrl: opts.defconUrl as string,
+            db: seedDb,
+            adminToken: opts.adminToken as string | undefined,
+          });
         } catch (err) {
           console.error(`[norad] Seed failed: ${(err as Error).message}`);
           process.exit(1);
@@ -478,14 +483,15 @@ export function buildProgram(): Command {
     )
     .argument("<path>", "Path to the seed JSON file")
     .option("--defcon-url <url>", "DEFCON server URL", "http://localhost:3000")
+    .option("--admin-token <token>", "DEFCON admin token for seeding flows", process.env.DEFCON_ADMIN_TOKEN)
     .requiredOption(
       "--db <path>",
       "Local SQLite database path (required — use a dedicated seed DB, not the live norad.db)",
     )
-    .action(async (seedPath: string, opts: { defconUrl: string; db: string }) => {
+    .action(async (seedPath: string, opts: { defconUrl: string; db: string; adminToken?: string }) => {
       const { runSeed } = await import("./seed-action.js");
       try {
-        await runSeed({ seedPath, defconUrl: opts.defconUrl, db: opts.db });
+        await runSeed({ seedPath, defconUrl: opts.defconUrl, db: opts.db, adminToken: opts.adminToken });
       } catch (err) {
         console.error(`[norad] Seed failed: ${err instanceof Error ? err.message : err}`);
         process.exit(1);

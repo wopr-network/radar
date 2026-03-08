@@ -6,6 +6,7 @@ import { SeedFileSchema } from "./types.js";
 export interface LoadSeedDeps {
   defconUrl: string;
   db: NoradDb;
+  adminToken?: string;
 }
 
 export interface LoadSeedResult {
@@ -89,7 +90,10 @@ export async function loadSeed(seedPath: string, deps: LoadSeedDeps): Promise<Lo
     // PUT /api/flows/:id is idempotent — creates the flow if absent, updates it if already present.
     const res = await fetch(`${deps.defconUrl}/api/flows/${encodeURIComponent(flow.name)}`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(deps.adminToken ? { Authorization: `Bearer ${deps.adminToken}` } : {}),
+      },
       body: JSON.stringify({
         description: flow.description,
         definition: {

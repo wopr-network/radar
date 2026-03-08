@@ -5,12 +5,17 @@ export interface RunSeedOpts {
   seedPath: string;
   defconUrl: string;
   db: string;
+  adminToken?: string;
 }
 
 export async function runSeed(opts: RunSeedOpts): Promise<void> {
   const db = createDb(opts.db);
   try {
-    const result = await loadSeed(opts.seedPath, { defconUrl: opts.defconUrl, db });
+    const result = await loadSeed(opts.seedPath, {
+      defconUrl: opts.defconUrl,
+      db,
+      adminToken: opts.adminToken ?? process.env.DEFCON_ADMIN_TOKEN,
+    });
     console.log(`[norad] Seeded: ${result.flows} flows, ${result.sources} sources, ${result.watches} watches`);
   } finally {
     db.$client.close();
