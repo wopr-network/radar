@@ -142,7 +142,7 @@ export function buildProgram(): Command {
 
       const { Pool } = await import("../pool/pool.js");
       const { DefconClient } = await import("../defcon/client.js");
-      const { ClaudeCodeDispatcher } = await import("../dispatcher/claude-code-dispatcher.js");
+      const { SdkDispatcher } = await import("../dispatcher/sdk-dispatcher.js");
       const { DrizzleEntityActivityRepo } = await import("../db/repos/drizzle-entity-activity-repo.js");
       const { RunLoop } = await import("../run-loop/run-loop.js");
       const { createServer } = await import("../api/server.js");
@@ -153,8 +153,8 @@ export function buildProgram(): Command {
       const pool = new Pool(opts.workers);
       const defcon = new DefconClient({ url: opts.defconUrl, workerToken: opts.workerToken });
       const ingestor = new Ingestor(entityMapRepo, defcon);
-      const dispatcher = new ClaudeCodeDispatcher();
       const activityRepo = new DrizzleEntityActivityRepo(radarDb);
+      const dispatcher = new SdkDispatcher(activityRepo);
 
       // Adapters: bridge drizzle repo method names to AppDeps interface
       const sourceRepo = {
