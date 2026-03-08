@@ -15,10 +15,13 @@ export class LinearSourceAdapter implements SourceAdapter {
       const flowName = typeof actionConfig.flowName === "string" ? actionConfig.flowName : undefined;
       if (!flowName) continue;
 
+      const signal = typeof actionConfig.signal === "string" ? actionConfig.signal : undefined;
+
       const filterConfig = watch.filter ?? {};
       const config: WebhookWatchConfig = {
         sourceId: source.id,
         flowName,
+        signal,
         filter: {
           state: typeof filterConfig.state === "string" ? filterConfig.state : undefined,
           labels: Array.isArray(filterConfig.labels) ? (filterConfig.labels as string[]) : undefined,

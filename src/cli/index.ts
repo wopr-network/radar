@@ -120,7 +120,10 @@ export function buildProgram(): Command {
                 name: watch.id,
                 filter: JSON.stringify(watch.filter ?? {}),
                 action: watch.event,
-                actionConfig: JSON.stringify({ flowName: watch.flowName }),
+                actionConfig: JSON.stringify({
+                  flowName: watch.flowName,
+                  ...(watch.signal ? { signal: watch.signal } : {}),
+                }),
                 enabled: true,
                 createdAt: now,
                 updatedAt: now,

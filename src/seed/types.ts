@@ -13,6 +13,7 @@ export const SeedWatchSchema = z.object({
   sourceId: z.string().min(1),
   event: z.string().min(1),
   flowName: z.string().min(1),
+  signal: z.string().optional(),
   filter: z.record(z.string(), z.unknown()).optional(),
 });
 
