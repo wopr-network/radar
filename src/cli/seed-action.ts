@@ -1,4 +1,4 @@
-import Database from "better-sqlite3";
+import { createDb } from "../db/index.js";
 import { loadSeed } from "../seed/loader.js";
 
 export interface RunSeedOpts {
@@ -8,13 +8,11 @@ export interface RunSeedOpts {
 }
 
 export async function runSeed(opts: RunSeedOpts): Promise<void> {
-  const db = new Database(opts.db);
-  db.pragma("journal_mode = WAL");
-  db.pragma("foreign_keys = ON");
+  const db = createDb(opts.db);
   try {
     const result = await loadSeed(opts.seedPath, { defconUrl: opts.defconUrl, db });
     console.log(`[norad] Seeded: ${result.flows} flows, ${result.sources} sources, ${result.watches} watches`);
   } finally {
-    db.close();
+    db.$client.close();
   }
 }
