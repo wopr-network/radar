@@ -29,6 +29,30 @@ describe("sanitizeErrorMessage", () => {
   });
 });
 
+describe("case-insensitive bearer and basic auth redaction", () => {
+  it("strips lowercase bearer tokens", () => {
+    const msg = "failed: bearer token123abc";
+    expect(sanitizeErrorMessage(msg)).not.toContain("token123abc");
+    expect(sanitizeErrorMessage(msg)).toContain("[REDACTED]");
+  });
+
+  it("strips mixed-case bearer tokens", () => {
+    const msg = "error: Bearer Token456";
+    expect(sanitizeErrorMessage(msg)).not.toContain("Token456");
+  });
+
+  it("strips Basic auth headers", () => {
+    const msg = "request failed: basic dXNlcjpwYXNzd29yZA==";
+    expect(sanitizeErrorMessage(msg)).not.toContain("dXNlcjpwYXNzd29yZA==");
+    expect(sanitizeErrorMessage(msg)).toContain("[REDACTED]");
+  });
+
+  it("strips uppercase BASIC auth headers", () => {
+    const msg = "BASIC dXNlcjpwYXNzd29yZA==";
+    expect(sanitizeErrorMessage(msg)).not.toContain("dXNlcjpwYXNzd29yZA==");
+  });
+});
+
 describe("safeErrorMessage", () => {
   it("extracts message from Error objects", () => {
     const err = new Error("something failed");

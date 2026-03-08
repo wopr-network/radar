@@ -1,15 +1,21 @@
 import type { Router } from "../router.js";
 import type { Source, SourceRepo } from "../types.js";
 
+const SENSITIVE_KEY = /secret|token|password|key|credential|auth|apikey|api_key/i;
+
+function redactDeep(obj: unknown): unknown {
+  if (typeof obj !== "object" || obj === null) return obj;
+  if (Array.isArray(obj)) return obj.map(redactDeep);
+  return Object.fromEntries(
+    Object.entries(obj as Record<string, unknown>).map(([k, v]) => [
+      k,
+      SENSITIVE_KEY.test(k) && typeof v === "string" ? "[REDACTED]" : redactDeep(v),
+    ]),
+  );
+}
+
 function redactSource(source: Source): Omit<Source, "config"> & { config: Record<string, unknown> } {
-  const {
-    secret: _s,
-    apiKey: _a,
-    token: _t,
-    oauthToken: _o,
-    ...safeConfig
-  } = (source.config ?? {}) as Record<string, unknown>;
-  return { ...source, config: safeConfig };
+  return { ...source, config: redactDeep(source.config ?? {}) as Record<string, unknown> };
 }
 
 export function registerSourceRoutes(router: Router, repo: SourceRepo): void {
