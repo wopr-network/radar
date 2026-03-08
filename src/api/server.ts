@@ -1,5 +1,6 @@
 import { createServer as httpCreateServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { Router } from "./router.js";
+import { registerActivityRoutes } from "./routes/activity.js";
 import { registerEventRoutes } from "./routes/events.js";
 import { registerPoolRoutes } from "./routes/pool.js";
 import { registerSourceRoutes } from "./routes/sources.js";
@@ -37,6 +38,7 @@ export function createServer(deps: AppDeps): Server {
   registerWorkerRoutes(router, deps.workerRepo);
   registerPoolRoutes(router, deps.pool, () => deps.defconClient.claim({ role: "engineering" }));
   registerEventRoutes(router, deps.eventLogRepo);
+  registerActivityRoutes(router, deps.activityRepo);
 
   const server = httpCreateServer(async (req: IncomingMessage, res: ServerResponse) => {
     try {
