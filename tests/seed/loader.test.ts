@@ -58,9 +58,10 @@ describe("loadSeed", () => {
         name: "test-flow",
         initialState: "open",
         description: "A test flow",
+        discipline: "triage",
         states: [
-          { name: "open", agentRole: "triage", mode: "passive" },
-          { name: "closed", agentRole: "closer", mode: "passive" },
+          { name: "open", mode: "passive" },
+          { name: "closed", mode: "passive" },
         ],
         transitions: [{ fromState: "open", toState: "closed", trigger: "done" }],
       },
