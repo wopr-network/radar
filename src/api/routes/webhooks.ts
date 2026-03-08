@@ -12,7 +12,8 @@ export function registerWebhookRoutes(
     if (!source) return { status: 404, body: { error: "Source not found" } };
     if (!source.enabled) return { status: 400, body: { error: "Source is disabled" } };
 
-    const secret = typeof source.config.secret === "string" ? source.config.secret : undefined;
+    const secret =
+      typeof source.config.secret === "string" && source.config.secret.length > 0 ? source.config.secret : undefined;
 
     if (secret) {
       const headerName = getSignatureHeader(source);

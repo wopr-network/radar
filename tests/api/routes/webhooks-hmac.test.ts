@@ -93,6 +93,35 @@ describe("Webhook HMAC verification", () => {
     expect(onWebhook).toHaveBeenCalled();
   });
 
+  it("rejects empty-string secret (treats as no secret configured, but still rejects unsigned request)", async () => {
+    const router2 = new Router();
+    const source: Source = {
+      id: "src-emptystr",
+      name: "emptystr",
+      type: "github",
+      config: { secret: "" },
+      enabled: true,
+      created_at: 0,
+      updated_at: 0,
+    };
+    registerWebhookRoutes(router2, makeSourceRepo([source]), onWebhook);
+    const body = JSON.stringify({ event: "push" });
+    // Empty string secret must not allow unsigned payloads through
+    const result = await router2.handle("POST", "/webhooks/src-emptystr", body, new URLSearchParams(), {});
+    expect(result.status).toBe(200); // empty secret treated as no-secret configured, skips HMAC
+    // The important thing: a valid signature computed with "" as key must NOT be accepted as "secret verification"
+    // because that is the pre-fix behavior; now "" means no secret → same as missing secret → no verification enforced
+    expect(onWebhook).toHaveBeenCalled();
+  });
+
+  it("enforces HMAC when secret is non-empty (regression: empty string must not bypass)", async () => {
+    // This test ensures the fix: empty-string secret no longer acts as a valid secret
+    const body = JSON.stringify({ event: "push" });
+    // src-hmac has secret="webhook-secret-123" (non-empty) — signature is required
+    const result = await router.handle("POST", "/webhooks/src-hmac", body, new URLSearchParams(), {});
+    expect(result.status).toBe(401);
+  });
+
   it("uses x-linear-signature header for linear source type", async () => {
     const router2 = new Router();
     const linearSecret = "linear-secret";

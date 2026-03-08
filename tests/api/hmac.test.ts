@@ -60,4 +60,12 @@ describe("getSignatureHeader", () => {
   it("returns default x-webhook-signature for unknown type", () => {
     expect(getSignatureHeader({ type: "webhook", config: {} })).toBe("x-webhook-signature");
   });
+
+  it("is case-insensitive for source type (GitHub → github)", () => {
+    expect(getSignatureHeader({ type: "GitHub", config: {} })).toBe("x-hub-signature-256");
+  });
+
+  it("is case-insensitive for source type (LINEAR → linear)", () => {
+    expect(getSignatureHeader({ type: "LINEAR", config: {} })).toBe("x-linear-signature");
+  });
 });

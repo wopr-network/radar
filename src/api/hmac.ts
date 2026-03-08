@@ -15,7 +15,7 @@ export function getSignatureHeader(source: { type: string; config: Record<string
   if (typeof source.config.signatureHeader === "string") {
     return source.config.signatureHeader.toLowerCase();
   }
-  return SIGNATURE_HEADERS[source.type] ?? DEFAULT_SIGNATURE_HEADER;
+  return SIGNATURE_HEADERS[source.type.toLowerCase()] ?? DEFAULT_SIGNATURE_HEADER;
 }
 
 export function verifyWebhookSignature(
