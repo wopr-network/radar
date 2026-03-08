@@ -23,6 +23,7 @@ export function buildProgram(): Command {
     .option("--max-concurrent <n>", "Max concurrent entities for the flow", (v: string) => Number.parseInt(v, 10))
     .option("--max-concurrent-per-repo <n>", "Max concurrent entities per repo", (v: string) => Number.parseInt(v, 10))
     .option("--worker <type>", "Worker type identifier")
+    .option("--dummy", "Use dummy dispatcher (no Claude API calls, for testing)")
     .option("--seed <path>", "Seed file path")
     .option("--defcon-url <url>", "DEFCON server URL", "http://localhost:3000")
     .option("--worker-token <token>", "DEFCON worker token for claiming work", process.env.DEFCON_WORKER_TOKEN)
@@ -158,7 +159,18 @@ export function buildProgram(): Command {
       const defcon = new DefconClient({ url: opts.defconUrl, workerToken: opts.workerToken });
       const ingestor = new Ingestor(entityMapRepo, defcon);
       const activityRepo = new DrizzleEntityActivityRepo(radarDb);
-      const dispatcher = new SdkDispatcher(activityRepo);
+
+      if (!opts.dummy && process.getuid?.() === 0) {
+        console.error(
+          "[radar] SdkDispatcher requires a non-root user (bypassPermissions is blocked when running as root). " +
+            "Re-run as a non-root user or pass --dummy for testing.",
+        );
+        process.exit(1);
+      }
+
+      const dispatcher = opts.dummy
+        ? new (await import("../dispatcher/dummy-dispatcher.js")).DummyDispatcher(activityRepo)
+        : new SdkDispatcher(activityRepo);
 
       // Adapters: bridge drizzle repo method names to AppDeps interface
       const sourceRepo = {
