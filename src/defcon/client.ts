@@ -41,8 +41,8 @@ export class DefconClient {
     const res = await fetch(`${this.url}/api/entities`, {
       method: "POST",
       headers: { "Content-Type": "application/json", ...this.authHeader },
-      // defcon expects `flow` (not `flowName`); REST API does not accept payload
-      body: JSON.stringify({ flow: params.flowName }),
+      // defcon expects `flow` (not `flowName`)
+      body: JSON.stringify({ flow: params.flowName, ...(params.payload ? { payload: params.payload } : {}) }),
       signal,
     });
     if (!res.ok) throw new Error(`entity create failed: ${res.status}`);
