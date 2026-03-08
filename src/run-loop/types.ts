@@ -7,7 +7,7 @@ export interface RunLoopConfig {
   pool: Pool;
   defcon: DefconClient;
   dispatcher: Dispatcher;
-  activityRepo: IEntityActivityRepo;
+  activityRepo?: IEntityActivityRepo;
   role: string;
   flow?: string;
   pollIntervalMs?: number;
