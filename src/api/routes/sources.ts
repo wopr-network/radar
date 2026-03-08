@@ -26,7 +26,7 @@ export function registerSourceRoutes(router: Router, repo: SourceRepo): void {
       config: data.config ?? {},
       enabled: data.enabled ?? true,
     });
-    return { status: 201, body: source };
+    return { status: 201, body: redactSource(source) };
   });
 
   router.add("GET", "/api/sources/:id", async (ctx) => {
@@ -41,7 +41,7 @@ export function registerSourceRoutes(router: Router, repo: SourceRepo): void {
     }
     const updated = await repo.update(ctx.params.id, ctx.body as Partial<Source>);
     if (!updated) return { status: 404, body: { error: "Source not found" } };
-    return { status: 200, body: updated };
+    return { status: 200, body: redactSource(updated) };
   });
 
   router.add("DELETE", "/api/sources/:id", async (ctx) => {

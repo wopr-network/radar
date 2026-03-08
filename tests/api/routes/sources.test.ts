@@ -104,6 +104,30 @@ describe("Source Routes", () => {
     expect(result.status).toBe(404);
   });
 
+  it("POST /api/sources redacts secret from response", async () => {
+    const result = await router.handle(
+      "POST",
+      "/api/sources",
+      JSON.stringify({ name: "secure", type: "webhook", config: { secret: "mysecret", url: "https://example.com" }, enabled: true }),
+      new URLSearchParams(),
+    );
+    expect(result.status).toBe(201);
+    expect((result.body as Source & { config: Record<string, unknown> }).config.secret).toBeUndefined();
+    expect((result.body as Source & { config: Record<string, unknown> }).config.url).toBe("https://example.com");
+  });
+
+  it("PUT /api/sources/:id redacts secret from response", async () => {
+    const created = await repo.create({ name: "gh", type: "webhook", config: { secret: "s3cr3t" }, enabled: true });
+    const result = await router.handle(
+      "PUT",
+      `/api/sources/${created.id}`,
+      JSON.stringify({ name: "gh-updated" }),
+      new URLSearchParams(),
+    );
+    expect(result.status).toBe(200);
+    expect((result.body as Source & { config: Record<string, unknown> }).config.secret).toBeUndefined();
+  });
+
   it("POST /api/sources returns 400 when name is missing", async () => {
     const result = await router.handle(
       "POST",
