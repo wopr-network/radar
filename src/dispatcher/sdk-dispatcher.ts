@@ -68,7 +68,7 @@ export class SdkDispatcher implements Dispatcher {
 
           const { signal, artifacts } = parseSignal(lastText);
           return {
-            signal: signal === "unknown" ? "timeout" : signal,
+            signal,
             artifacts,
             exitCode: 0,
           };
