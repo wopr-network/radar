@@ -98,11 +98,11 @@ export async function loadSeed(seedPath: string, deps: LoadSeedDeps): Promise<Lo
         description: flow.description,
         definition: {
           initialState: flow.initialState,
+          discipline: flow.discipline,
           maxConcurrent: flow.maxConcurrent,
           maxConcurrentPerRepo: flow.maxConcurrentPerRepo,
           states: flow.states.map((s) => ({
             name: s.name,
-            agentRole: s.agentRole,
             modelTier: s.modelTier,
             mode: s.mode,
             promptTemplate: s.promptTemplate,

@@ -20,7 +20,6 @@ export const SeedWatchSchema = z.object({
 export const SeedStateSchema = z
   .object({
     name: z.string().min(1),
-    agentRole: z.string().optional(),
     modelTier: z.string().optional(),
     mode: z.enum(["passive", "active"]).optional(),
     promptTemplate: z.string().optional(),
@@ -42,6 +41,7 @@ export const SeedFlowSchema = z
   .object({
     name: z.string().min(1),
     initialState: z.string().min(1),
+    discipline: z.string().min(1).optional(),
     description: z.string().optional(),
     maxConcurrent: z.number().int().min(0).optional(),
     maxConcurrentPerRepo: z.number().int().min(0).optional(),
