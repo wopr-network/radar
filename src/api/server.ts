@@ -44,7 +44,7 @@ export function createServer(deps: AppDeps): Server {
       const method = req.method ?? "GET";
       const rawBody = await readBody(req);
 
-      const result = await router.handle(method, url.pathname, rawBody, url.searchParams);
+      const result = await router.handle(method, url.pathname, rawBody, url.searchParams, req.headers);
 
       res.writeHead(result.status, { "Content-Type": "application/json" });
       res.end(JSON.stringify(result.body));

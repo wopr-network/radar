@@ -19,7 +19,13 @@ export class Router {
     this.routes.push({ method: method.toUpperCase(), pattern, paramNames, handler });
   }
 
-  async handle(method: string, pathname: string, rawBody: string, query: URLSearchParams): Promise<RouteResult> {
+  async handle(
+    method: string,
+    pathname: string,
+    rawBody: string,
+    query: URLSearchParams,
+    headers: Record<string, string | string[] | undefined> = {},
+  ): Promise<RouteResult> {
     const upperMethod = method.toUpperCase();
     let pathMatched = false;
 
@@ -44,7 +50,7 @@ export class Router {
         }
       }
 
-      const ctx: RouteContext = { params, body, query };
+      const ctx: RouteContext = { params, body, rawBody, headers, query };
       return route.handler(ctx);
     }
 
