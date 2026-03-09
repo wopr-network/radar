@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { query } from "@anthropic-ai/claude-agent-sdk";
 import type { IEntityActivityRepo } from "../db/repos/entity-activity-repo.js";
 import { parseSignal } from "./parse-signal.js";
@@ -28,8 +28,19 @@ async function safeInsert(
 }
 
 function loadAgentMd(agentsDir: string, agentRole: string): string | null {
+  // Reject roles containing path separators or dots to prevent path traversal.
+  if (!/^[\w-]+$/.test(agentRole)) {
+    console.warn(`[claude] agentRole "${agentRole}" contains invalid characters — skipping MD load`);
+    return null;
+  }
+  const resolvedDir = resolve(agentsDir);
+  const resolvedFile = resolve(join(resolvedDir, `${agentRole}.md`));
+  if (!resolvedFile.startsWith(`${resolvedDir}/`) && resolvedFile !== resolvedDir) {
+    console.warn(`[claude] agentRole path "${resolvedFile}" escapes agentsDir — skipping MD load`);
+    return null;
+  }
   try {
-    return readFileSync(join(agentsDir, `${agentRole}.md`), "utf-8");
+    return readFileSync(resolvedFile, "utf-8");
   } catch {
     return null;
   }
