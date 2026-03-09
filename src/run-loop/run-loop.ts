@@ -45,21 +45,22 @@ export class RunLoop {
   async start(): Promise<void> {
     if (this.abortController) throw new Error("RunLoop already started");
     this.abortController = new AbortController();
-    const { pool, workerRepo } = this.config;
+    const { workerRepo } = this.config;
 
     // Register worker in DB if repo provided
-    let workerIdForSlots = `${this.config.workerIdPrefix ?? "wkr"}-${randomUUID().slice(0, 8)}`;
+    let workerIdPrefix = `${this.config.workerIdPrefix ?? "wkr"}-${randomUUID().slice(0, 8)}`;
     try {
       if (workerRepo) {
         const hostname = globalThis.process?.env?.HOSTNAME ?? "unknown";
         const pid = globalThis.process?.pid ?? 0;
+        const primaryDiscipline = this.config.workerDiscipline ?? this.config.roles[0]?.discipline ?? "unknown";
         const worker = await workerRepo.register({
           name: `${this.config.workerIdPrefix ?? "wkr"}-${hostname}-${pid}`,
           type: this.config.workerType ?? "unknown",
-          discipline: this.config.workerDiscipline ?? this.config.role,
+          discipline: primaryDiscipline,
         });
         this.registeredWorkerId = worker.id;
-        workerIdForSlots = worker.id;
+        workerIdPrefix = worker.id;
 
         // Heartbeat once per process per interval (not per slot per cycle)
         const heartbeatTimer = setInterval(() => {
@@ -76,10 +77,18 @@ export class RunLoop {
       throw err;
     }
 
-    const capacity = pool.availableSlots();
-    for (let i = 0; i < capacity; i++) {
+    // Expand roles into per-slot discipline assignments
+    const slotDisciplines: string[] = [];
+    for (const role of this.config.roles) {
+      for (let i = 0; i < role.count; i++) {
+        slotDisciplines.push(role.discipline);
+      }
+    }
+
+    for (let i = 0; i < slotDisciplines.length; i++) {
       const slotId = `slot-${i}`;
-      const promise = this.runSlot(slotId, workerIdForSlots);
+      const workerId = workerRepo ? workerIdPrefix : `${workerIdPrefix}-${randomUUID().slice(0, 8)}`;
+      const promise = this.runSlot(slotId, workerId, slotDisciplines[i]);
       this.slotPromises.set(slotId, promise);
     }
   }
@@ -134,10 +143,10 @@ export class RunLoop {
     return this.abortController.signal;
   }
 
-  private async runSlot(slotId: string, workerId: string): Promise<void> {
+  private async runSlot(slotId: string, workerId: string, discipline: string): Promise<void> {
     while (!this.signal.aborted) {
       try {
-        await this.claimAndProcess(slotId, workerId);
+        await this.claimAndProcess(slotId, workerId, discipline);
       } catch (err) {
         if (!this.signal.aborted) {
           logger.error(`[radar] slot ${slotId} claim error`, { error: safeErrorMessage(err) });
@@ -147,8 +156,8 @@ export class RunLoop {
     }
   }
 
-  private async claimAndProcess(slotId: string, workerId: string): Promise<void> {
-    const { defcon, dispatcher, pool, role, flow } = this.config;
+  private async claimAndProcess(slotId: string, workerId: string, discipline: string): Promise<void> {
+    const { defcon, dispatcher, pool, flow } = this.config;
 
     // Concurrency gate: global per-flow limit
     // Use pendingClaims to prevent TOCTOU: multiple slots checking the count
@@ -164,7 +173,7 @@ export class RunLoop {
     this.pendingClaims++;
     let claim: ClaimResponse;
     try {
-      claim = await defcon.claim({ workerId, role, flow }, { signal: this.signal });
+      claim = await defcon.claim({ workerId, role: discipline, flow }, { signal: this.signal });
     } finally {
       this.pendingClaims--;
     }

@@ -53,7 +53,7 @@ function makeConfig(overrides: Partial<RunLoopConfig> = {}): RunLoopConfig {
     pool: new Pool(1),
     defcon: makeDefcon([{ retry_after_ms: 50 }]),
     dispatcher: makeDispatcher(),
-    role: "engineering",
+    roles: [{ discipline: "engineering", count: 1 }],
     pollIntervalMs: 5,
     ...overrides,
   };

@@ -18,8 +18,10 @@ export function buildProgram(): Command {
   program
     .command("run")
     .description("Start the worker pool")
-    .requiredOption("-w, --workers <n>", "Number of worker slots", (v: string) => Number.parseInt(v, 10))
-    .requiredOption("-r, --role <role>", "Worker discipline (engineering, devops, qa, security)")
+    .option("-w, --workers <n>", "Number of worker slots (optional when counts are in --role)", (v: string) =>
+      Number.parseInt(v, 10),
+    )
+    .option("-r, --role <role...>", "Worker discipline(s). Format: discipline or discipline:count", [])
     .option("-f, --flow <flow>", "Restrict to a specific flow")
     .option("--max-concurrent <n>", "Max concurrent entities for the flow", (v: string) => Number.parseInt(v, 10))
     .option("--max-concurrent-per-repo <n>", "Max concurrent entities per repo", (v: string) => Number.parseInt(v, 10))
@@ -32,15 +34,43 @@ export function buildProgram(): Command {
     .option("--admin-token <token>", "DEFCON admin token for seeding flows", process.env.DEFCON_ADMIN_TOKEN)
     .option("--port <n>", "API server port", (v: string) => Number.parseInt(v, 10), 8080)
     .action(async (opts) => {
-      if (Number.isNaN(opts.workers) || opts.workers <= 0) {
+      if (opts.workers != null && (Number.isNaN(opts.workers) || opts.workers <= 0)) {
         logger.error(`Error: --workers must be a positive integer, got "${opts.workers}"`);
         process.exit(1);
       }
 
-      if (!(VALID_DISCIPLINES as readonly string[]).includes(opts.role)) {
-        logger.error(`Error: invalid role "${opts.role}". Must be one of: ${VALID_DISCIPLINES.join(", ")}`);
+      // Parse roles: each entry is either "discipline" or "discipline:count"
+      const rawRoles = (opts.role ?? []) as string[];
+      if (rawRoles.length === 0) {
+        logger.error("Error: at least one --role is required");
         process.exit(1);
       }
+
+      const roles: Array<{ discipline: string; count: number }> = [];
+      for (const raw of rawRoles) {
+        const parts = raw.split(":");
+        const discipline = parts[0];
+        if (!(VALID_DISCIPLINES as readonly string[]).includes(discipline)) {
+          logger.error(`Error: invalid role "${discipline}". Must be one of: ${VALID_DISCIPLINES.join(", ")}`);
+          process.exit(1);
+        }
+        if (parts.length > 1) {
+          const count = Number.parseInt(parts[1], 10);
+          if (Number.isNaN(count) || count < 1) {
+            logger.error(`Error: count must be a positive integer in "${raw}"`);
+            process.exit(1);
+          }
+          roles.push({ discipline, count });
+        } else {
+          // Bare discipline — use --workers if given, else 1
+          const count = opts.workers != null && !Number.isNaN(opts.workers) ? opts.workers : 1;
+          roles.push({ discipline, count });
+        }
+      }
+
+      const totalWorkers = roles.reduce((sum, r) => sum + r.count, 0);
+      opts.roles = roles;
+      opts.workers = totalWorkers;
 
       if (opts.maxConcurrent != null && (Number.isNaN(opts.maxConcurrent) || opts.maxConcurrent < 1)) {
         logger.error(`Invalid --max-concurrent: ${opts.maxConcurrent}`);
@@ -157,7 +187,7 @@ export function buildProgram(): Command {
       const { LinearSourceAdapter } = await import("../sources/linear-adapter.js");
       const { GenericSourceAdapter } = await import("../sources/generic-adapter.js");
 
-      const pool = new Pool(opts.workers);
+      const pool = new Pool(totalWorkers);
       const defcon = new DefconClient({ url: opts.defconUrl, workerToken: opts.workerToken });
       const ingestor = new Ingestor(entityMapRepo, defcon);
       const activityRepo = new DrizzleEntityActivityRepo(radarDb);
@@ -397,8 +427,8 @@ export function buildProgram(): Command {
         activityRepo,
         workerRepo,
         workerType: opts.worker ?? "wopr",
-        workerDiscipline: opts.role,
-        role: opts.role,
+        workerDiscipline: (opts.roles as Array<{ discipline: string; count: number }>)[0]?.discipline,
+        roles: opts.roles as Array<{ discipline: string; count: number }>,
         flow: opts.flow,
         workerIdPrefix: opts.worker,
         pollIntervalMs: 5000,
@@ -406,8 +436,11 @@ export function buildProgram(): Command {
         maxConcurrentPerRepo: opts.maxConcurrentPerRepo,
       });
 
+      const rolesDesc = (opts.roles as Array<{ discipline: string; count: number }>)
+        .map((r) => `${r.discipline}:${r.count}`)
+        .join(", ");
       logger.info(
-        `[radar] Starting ${opts.workers} worker slots — role: ${opts.role}${opts.flow ? ` — flow: ${opts.flow}` : ""}${opts.worker ? ` — worker: ${opts.worker}` : ""}`,
+        `[radar] Starting ${totalWorkers} worker slots — roles: ${rolesDesc}${opts.flow ? ` — flow: ${opts.flow}` : ""}${opts.worker ? ` — worker: ${opts.worker}` : ""}`,
       );
       await loop.start();
 
