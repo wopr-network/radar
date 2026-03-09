@@ -285,6 +285,23 @@ export class RunLoop {
           }
         }
 
+        if (this.config.activityRepo) {
+          try {
+            let history = await this.config.activityRepo.getSummary(claim.entity_id);
+            if (history) {
+              const MAX_HISTORY_CHARS = 8000;
+              if (history.length > MAX_HISTORY_CHARS) {
+                history = `${history.slice(0, MAX_HISTORY_CHARS)}\n\n[...history truncated]`;
+              }
+              currentArtifacts = { ...(currentArtifacts ?? {}), activityHistory: history };
+            }
+          } catch (err) {
+            logger.warn(`[radar] slot ${slotId} failed to get activity history`, {
+              error: safeErrorMessage(err),
+            });
+          }
+        }
+
         pool.setState(slotId, "reporting");
         let response: ReportResponse;
         try {

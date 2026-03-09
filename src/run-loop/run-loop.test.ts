@@ -120,6 +120,98 @@ describe("RunLoop — activity history injection on continue", () => {
   });
 });
 
+describe("RunLoop — activityHistory injection on report", () => {
+  it("includes activityHistory in report artifacts when activity exists", async () => {
+    const summary = "Prior work on this entity:\n\nAttempt 1:\n  - Called tool: Edit(...)";
+    const activityRepo = makeActivityRepo(summary);
+
+    const firstClaim = {
+      entity_id: "e-hist",
+      prompt: "Do the work",
+      flow: "engineering",
+      entity_type: "issue",
+    };
+
+    const defcon = {
+      claim: vi.fn().mockResolvedValueOnce(firstClaim).mockResolvedValue({ retry_after_ms: 50 }),
+      report: vi.fn().mockResolvedValue({ next_action: "done" }),
+    } as unknown as import("../defcon/client.js").DefconClient;
+
+    const dispatcher = makeDispatcher({ signal: "pr_created", artifacts: { prNumber: 42 }, exitCode: 0 });
+    const config = makeConfig({ pool: new Pool(1), defcon, dispatcher, activityRepo });
+    const loop = new RunLoop(config);
+    loop.start();
+
+    await vi.waitFor(() => expect(defcon.report).toHaveBeenCalledTimes(1), { timeout: 3000 });
+    await loop.stop();
+
+    expect(defcon.report).toHaveBeenCalledWith(
+      expect.objectContaining({
+        artifacts: expect.objectContaining({
+          activityHistory: expect.stringContaining("Prior work on this entity"),
+        }),
+      }),
+    );
+  });
+
+  it("does not include activityHistory when getSummary returns empty string", async () => {
+    const activityRepo = makeActivityRepo("");
+
+    const firstClaim = {
+      entity_id: "e-no-hist",
+      prompt: "Do the work",
+      flow: "engineering",
+      entity_type: "issue",
+    };
+
+    const defcon = {
+      claim: vi.fn().mockResolvedValueOnce(firstClaim).mockResolvedValue({ retry_after_ms: 50 }),
+      report: vi.fn().mockResolvedValue({ next_action: "done" }),
+    } as unknown as import("../defcon/client.js").DefconClient;
+
+    const dispatcher = makeDispatcher({ signal: "pr_created", artifacts: { prNumber: 1 }, exitCode: 0 });
+    const config = makeConfig({ pool: new Pool(1), defcon, dispatcher, activityRepo });
+    const loop = new RunLoop(config);
+    loop.start();
+
+    await vi.waitFor(() => expect(defcon.report).toHaveBeenCalledTimes(1), { timeout: 3000 });
+    await loop.stop();
+
+    const reportCall = vi.mocked(defcon.report).mock.calls[0]?.[0] as Record<string, unknown> | undefined;
+    expect((reportCall?.artifacts as Record<string, unknown> | undefined)?.activityHistory).toBeUndefined();
+  });
+
+  it("caps activityHistory at 8000 characters", async () => {
+    const longSummary = "x".repeat(10000);
+    const activityRepo = makeActivityRepo(longSummary);
+
+    const firstClaim = {
+      entity_id: "e-long",
+      prompt: "Do the work",
+      flow: "engineering",
+      entity_type: "issue",
+    };
+
+    const defcon = {
+      claim: vi.fn().mockResolvedValueOnce(firstClaim).mockResolvedValue({ retry_after_ms: 50 }),
+      report: vi.fn().mockResolvedValue({ next_action: "done" }),
+    } as unknown as import("../defcon/client.js").DefconClient;
+
+    const dispatcher = makeDispatcher({ signal: "pr_created", artifacts: {}, exitCode: 0 });
+    const config = makeConfig({ pool: new Pool(1), defcon, dispatcher, activityRepo });
+    const loop = new RunLoop(config);
+    loop.start();
+
+    await vi.waitFor(() => expect(defcon.report).toHaveBeenCalledTimes(1), { timeout: 3000 });
+    await loop.stop();
+
+    const reportCall = vi.mocked(defcon.report).mock.calls[0]?.[0] as Record<string, unknown> | undefined;
+    const history = (reportCall?.artifacts as Record<string, unknown> | undefined)?.activityHistory as string;
+    expect(history.length).toBeLessThanOrEqual(8050);
+    expect(history).toContain("[...history truncated]");
+  });
+});
+
 describe("RunLoop — multi-discipline routing", () => {
   it("routes claims with per-slot discipline", async () => {
     const dispatcher = makeDispatcher({ signal: "done", artifacts: {}, exitCode: 0 });
