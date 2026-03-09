@@ -1,8 +1,11 @@
-import { execFileSync } from "node:child_process";
+import { execFile } from "node:child_process";
 import { randomUUID } from "node:crypto";
+import { promisify } from "node:util";
 import type { IEntityActivityRepo } from "../db/repos/i-entity-activity-repo.js";
 import { logger } from "../logger.js";
 import type { Dispatcher, DispatchOpts, WorkerResult } from "./types.js";
+
+const execFileAsync = promisify(execFile);
 
 const DEFAULT_NUKE_PORT = 8080;
 const DEFAULT_TIMEOUT_MS = 30 * 60 * 1000;
@@ -20,6 +23,9 @@ interface NukeSseEvent {
 
 // One container per entityId — lives across continue dispatches
 const containers = new Map<string, ContainerHandle>();
+
+// In-flight launches keyed by entityId — prevents duplicate containers on concurrent dispatch
+const inFlight = new Map<string, Promise<ContainerHandle>>();
 
 async function launchContainer(
   entityId: string,
@@ -64,46 +70,65 @@ async function launchContainer(
 
   args.push(image);
 
-  const containerId = execFileSync("docker", args, { encoding: "utf-8" }).trim();
+  const { stdout: runOut } = await execFileAsync("docker", args);
+  const containerId = runOut.trim();
 
-  // Wait for the host port to be assigned
+  // Wait for the host port to be assigned; clean up on any failure
   const maxWait = 15_000;
   const start = Date.now();
   let hostPort: number | null = null;
 
-  while (Date.now() - start < maxWait) {
-    try {
-      const inspectOutput = execFileSync("docker", ["inspect", containerId], { encoding: "utf-8" });
-      const inspect = JSON.parse(inspectOutput) as Array<{
-        NetworkSettings?: {
-          Ports?: Record<string, Array<{ HostPort?: string }>>;
-        };
-      }>;
-      const portMap = inspect[0]?.NetworkSettings?.Ports?.[`${containerPort}/tcp`];
-      if (portMap?.[0]?.HostPort) {
-        hostPort = Number(portMap[0].HostPort);
-        break;
+  try {
+    while (Date.now() - start < maxWait) {
+      try {
+        const { stdout: inspectOut } = await execFileAsync("docker", ["inspect", containerId]);
+        const inspect = JSON.parse(inspectOut) as Array<{
+          NetworkSettings?: {
+            Ports?: Record<string, Array<{ HostPort?: string }>>;
+          };
+        }>;
+        const portMap = inspect[0]?.NetworkSettings?.Ports?.[`${containerPort}/tcp`];
+        if (portMap?.[0]?.HostPort) {
+          hostPort = Number(portMap[0].HostPort);
+          break;
+        }
+      } catch {
+        // retry
       }
-    } catch {
-      // retry
+      await new Promise<void>((r) => setTimeout(r, 500));
     }
-    await new Promise<void>((r) => setTimeout(r, 500));
-  }
 
-  if (!hostPort) {
-    throw new Error(`Container ${containerId} did not expose port within ${maxWait}ms`);
-  }
+    if (!hostPort) {
+      throw new Error(`Container ${containerId} did not expose port within ${maxWait}ms`);
+    }
 
-  // Wait for /health
-  const healthStart = Date.now();
-  while (Date.now() - healthStart < maxWait) {
+    // Wait for /health — throw if container never becomes healthy
+    const healthStart = Date.now();
+    let healthy = false;
+    while (Date.now() - healthStart < maxWait) {
+      try {
+        const res = await fetch(`http://127.0.0.1:${hostPort}/health`);
+        if (res.ok) {
+          healthy = true;
+          break;
+        }
+      } catch {
+        // retry
+      }
+      await new Promise<void>((r) => setTimeout(r, 500));
+    }
+
+    if (!healthy) {
+      throw new Error(`Container ${containerId} did not become healthy within ${maxWait}ms`);
+    }
+  } catch (err) {
+    // Orphan cleanup: container was started but post-launch setup failed
     try {
-      const res = await fetch(`http://127.0.0.1:${hostPort}/health`);
-      if (res.ok) break;
+      await execFileAsync("docker", ["rm", "-f", containerId]);
     } catch {
-      // retry
+      // best effort
     }
-    await new Promise<void>((r) => setTimeout(r, 500));
+    throw err;
   }
 
   const handle: ContainerHandle = { containerId, hostPort, sessionId: null };
@@ -119,16 +144,16 @@ async function launchContainer(
   return handle;
 }
 
-function stopContainer(entityId: string): void {
+async function stopContainer(entityId: string): Promise<void> {
   const handle = containers.get(entityId);
   if (!handle) return;
+  containers.delete(entityId);
   try {
-    execFileSync("docker", ["rm", "-f", handle.containerId], { encoding: "utf-8" });
+    await execFileAsync("docker", ["rm", "-f", handle.containerId]);
     logger.info(`[nuke] container stopped`, { entityId, containerId: handle.containerId.slice(0, 12) });
   } catch {
     // best effort
   }
-  containers.delete(entityId);
 }
 
 export interface NukeDispatcherOpts {
@@ -157,17 +182,24 @@ export class NukeDispatcher implements Dispatcher {
   async dispatch(prompt: string, opts: DispatchOpts): Promise<WorkerResult> {
     const { entityId, workerId, modelTier, timeout = DEFAULT_TIMEOUT_MS } = opts;
 
-    // Get or launch container
+    // Get or launch container; use in-flight map to prevent duplicate launches
     let handle = containers.get(entityId);
     if (!handle) {
-      try {
-        handle = await launchContainer(entityId, this.image, {
+      let launch = inFlight.get(entityId);
+      if (!launch) {
+        launch = launchContainer(entityId, this.image, {
           claudeCredentialsPath: this.claudeCredentialsPath,
           ghTokenPath: this.ghTokenPath,
           network: this.network,
           agentsDir: process.env.RADAR_AGENTS_DIR,
           linearApiKey: process.env.LINEAR_API_KEY,
+        }).finally(() => {
+          inFlight.delete(entityId);
         });
+        inFlight.set(entityId, launch);
+      }
+      try {
+        handle = await launch;
       } catch (err) {
         logger.error(`[nuke] failed to launch container`, {
           entityId,
@@ -269,7 +301,7 @@ export class NukeDispatcher implements Dispatcher {
         error: err instanceof Error ? err.message : String(err),
       });
       // Container may have crashed — remove so next dispatch gets a fresh one
-      stopContainer(entityId);
+      await stopContainer(entityId);
       return {
         signal: "crash",
         artifacts: { error: err instanceof Error ? err.message : String(err) },
@@ -281,15 +313,14 @@ export class NukeDispatcher implements Dispatcher {
   }
 
   /** Stop and remove the container for an entity (called on flow complete). */
-  stopEntity(entityId: string): void {
-    stopContainer(entityId);
+  async stopEntity(entityId: string): Promise<void> {
+    await stopContainer(entityId);
   }
 
   /** Stop all running containers (shutdown hook). */
-  stopAll(): void {
-    for (const entityId of containers.keys()) {
-      stopContainer(entityId);
-    }
+  async stopAll(): Promise<void> {
+    const ids = [...containers.keys()];
+    await Promise.all(ids.map((id) => stopContainer(id)));
   }
 
   private async safeInsert(
