@@ -217,6 +217,8 @@ export class NukeDispatcher implements Dispatcher {
     const timer = setTimeout(() => controller.abort(), timeout);
 
     try {
+      await this.safeInsert(entityId, workerId, "start", { modelTier });
+
       const res = await fetch(`http://127.0.0.1:${handle.hostPort}/dispatch`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -244,7 +246,7 @@ export class NukeDispatcher implements Dispatcher {
       const decoder = new TextDecoder();
       let buffer = "";
 
-      while (true) {
+      readLoop: while (true) {
         const { done, value } = await reader.read();
         if (done) break;
         buffer += decoder.decode(value, { stream: true });
@@ -285,6 +287,7 @@ export class NukeDispatcher implements Dispatcher {
             signal = "crash";
             artifacts = { error: event.message };
             exitCode = -1;
+            break readLoop;
           }
         }
       }
@@ -328,7 +331,7 @@ export class NukeDispatcher implements Dispatcher {
   private async safeInsert(
     entityId: string,
     slotId: string,
-    type: "tool_use" | "text" | "result",
+    type: "start" | "tool_use" | "text" | "result",
     data: Record<string, unknown>,
   ): Promise<void> {
     try {
