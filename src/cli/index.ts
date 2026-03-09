@@ -105,7 +105,7 @@ export function buildProgram(): Command {
       try {
         roles = parseRoles(rawRoles, opts.workers as number | undefined);
       } catch (err) {
-        logger.error((err as Error).message);
+        logger.error(err instanceof Error ? err.message : String(err));
         process.exit(1);
       }
 
@@ -164,7 +164,7 @@ export function buildProgram(): Command {
             adminToken: opts.adminToken,
           });
         } catch (err) {
-          logger.error(`[radar] Seed failed`, { error: (err as Error).message });
+          logger.error(`[radar] Seed failed`, { error: err instanceof Error ? err.message : String(err) });
           process.exit(1);
         }
 
@@ -209,7 +209,9 @@ export function buildProgram(): Command {
               .run();
           }
         } catch (err) {
-          logger.error(`[radar] Failed to populate API DB from seed`, { error: (err as Error).message });
+          logger.error(`[radar] Failed to populate API DB from seed`, {
+            error: err instanceof Error ? err.message : String(err),
+          });
           process.exit(1);
         }
 
@@ -572,7 +574,7 @@ export function buildProgram(): Command {
         data = (await res.json()) as Record<string, unknown>;
       } catch (err) {
         logger.error(`Cannot connect to radar at ${url}`, {
-          error: (err as Error).message,
+          error: err instanceof Error ? err.message : String(err),
         });
         process.exit(1);
       }
