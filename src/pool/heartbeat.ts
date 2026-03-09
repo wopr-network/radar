@@ -29,9 +29,13 @@ export class HeartbeatReaper {
     this.timer = setInterval(() => {
       if (this.checking) return;
       this.checking = true;
-      this.reap().finally(() => {
-        this.checking = false;
-      });
+      this.reap()
+        .catch((err) => {
+          logger.error("[heartbeat-reaper] reap error", { err });
+        })
+        .finally(() => {
+          this.checking = false;
+        });
     }, this.config.checkIntervalMs);
   }
 
