@@ -271,7 +271,7 @@ export class NukeDispatcher implements Dispatcher {
           } else if (event.type === "text") {
             await this.safeInsert(entityId, workerId, "text", { text: event.text });
           } else if (event.type === "result") {
-            signal = event.signal as string;
+            signal = (event.signal as string) ?? "crash";
             artifacts = (event.artifacts as Record<string, unknown>) ?? {};
             exitCode = event.isError ? 1 : 0;
             await this.safeInsert(entityId, workerId, "result", {
