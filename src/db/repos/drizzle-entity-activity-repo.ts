@@ -52,17 +52,25 @@ export class DrizzleEntityActivityRepo implements IEntityActivityRepo {
     });
   }
 
-  getByEntity(entityId: string, since?: number): ActivityRow[] {
+  getByEntity(entityId: string, since?: number): Promise<ActivityRow[]> {
     const conditions =
       since !== undefined
         ? and(eq(entityActivity.entityId, entityId), gt(entityActivity.seq, since))
         : eq(entityActivity.entityId, entityId);
-    return this.db.select().from(entityActivity).where(conditions).orderBy(asc(entityActivity.seq)).all().map(toRow);
+    return Promise.resolve(
+      this.db.select().from(entityActivity).where(conditions).orderBy(asc(entityActivity.seq)).all().map(toRow),
+    );
   }
 
-  getSummary(entityId: string): string {
-    const rows = this.getByEntity(entityId);
-    if (rows.length === 0) return "";
+  getSummary(entityId: string): Promise<string> {
+    const rows = this.db
+      .select()
+      .from(entityActivity)
+      .where(eq(entityActivity.entityId, entityId))
+      .orderBy(asc(entityActivity.seq))
+      .all()
+      .map(toRow);
+    if (rows.length === 0) return Promise.resolve("");
 
     const bySlot = new Map<string, ActivityRow[]>();
     for (const row of rows) {
@@ -93,10 +101,13 @@ export class DrizzleEntityActivityRepo implements IEntityActivityRepo {
       attemptNum++;
     }
 
-    return `Prior work on this entity:\n\n${attempts.join("\n\n")}\n\nPlease pick up where the last attempt left off.`;
+    return Promise.resolve(
+      `Prior work on this entity:\n\n${attempts.join("\n\n")}\n\nPlease pick up where the last attempt left off.`,
+    );
   }
 
-  deleteByEntity(entityId: string): void {
+  deleteByEntity(entityId: string): Promise<void> {
     this.db.delete(entityActivity).where(eq(entityActivity.entityId, entityId)).run();
+    return Promise.resolve();
   }
 }

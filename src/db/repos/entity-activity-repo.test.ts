@@ -16,7 +16,7 @@ describe("EntityActivityRepo", () => {
         type: "tool_use",
         data: { name: "Read", input: { file_path: "/foo.ts" } },
       });
-      const rows = repo.getByEntity("e1");
+      const rows = await repo.getByEntity("e1");
       expect(rows).toHaveLength(1);
       const row = rows[0];
       expect(row.entityId).toBe("e1");
@@ -33,7 +33,7 @@ describe("EntityActivityRepo", () => {
       await repo.insert({ entityId: "e1", slotId: "s1", type: "start", data: {} });
       await repo.insert({ entityId: "e1", slotId: "s1", type: "tool_use", data: {} });
       await repo.insert({ entityId: "e1", slotId: "s1", type: "result", data: {} });
-      const rows = repo.getByEntity("e1");
+      const rows = await repo.getByEntity("e1");
       expect(rows[0].seq).toBe(0);
       expect(rows[1].seq).toBe(1);
       expect(rows[2].seq).toBe(2);
@@ -44,7 +44,7 @@ describe("EntityActivityRepo", () => {
       await repo.insert({ entityId: "e1", slotId: "s1", type: "start", data: {} });
       await repo.insert({ entityId: "e1", slotId: "s1", type: "result", data: {} });
       await repo.insert({ entityId: "e2", slotId: "s2", type: "start", data: {} });
-      const rows = repo.getByEntity("e2");
+      const rows = await repo.getByEntity("e2");
       expect(rows[0].seq).toBe(0);
     });
   });
@@ -55,7 +55,7 @@ describe("EntityActivityRepo", () => {
       await repo.insert({ entityId: "e1", slotId: "s1", type: "result", data: {} });
       await repo.insert({ entityId: "e1", slotId: "s1", type: "start", data: {} });
       await repo.insert({ entityId: "e1", slotId: "s1", type: "tool_use", data: {} });
-      const rows = repo.getByEntity("e1");
+      const rows = await repo.getByEntity("e1");
       expect(rows.map((r) => r.seq)).toEqual([0, 1, 2]);
     });
 
@@ -64,20 +64,20 @@ describe("EntityActivityRepo", () => {
       for (let i = 0; i < 5; i++) {
         await repo.insert({ entityId: "e1", slotId: "s1", type: "text", data: { text: `line ${i}` } });
       }
-      const rows = repo.getByEntity("e1", 2);
+      const rows = await repo.getByEntity("e1", 2);
       expect(rows.map((r) => r.seq)).toEqual([3, 4]);
     });
 
-    it("returns empty array for unknown entity", () => {
+    it("returns empty array for unknown entity", async () => {
       const repo = makeRepo();
-      expect(repo.getByEntity("nobody")).toEqual([]);
+      expect(await repo.getByEntity("nobody")).toEqual([]);
     });
   });
 
   describe("getSummary", () => {
-    it("returns empty string when no activity", () => {
+    it("returns empty string when no activity", async () => {
       const repo = makeRepo();
-      expect(repo.getSummary("e1")).toBe("");
+      expect(await repo.getSummary("e1")).toBe("");
     });
 
     it("includes tool_use events", async () => {
@@ -95,7 +95,7 @@ describe("EntityActivityRepo", () => {
         type: "result",
         data: { subtype: "success", cost_usd: 0.001 },
       });
-      const summary = repo.getSummary("e1");
+      const summary = await repo.getSummary("e1");
       expect(summary).toContain("Called tool: Read");
       expect(summary).toContain("Ended: success");
     });
@@ -106,7 +106,7 @@ describe("EntityActivityRepo", () => {
       await repo.insert({ entityId: "e1", slotId: "slot-a", type: "result", data: { subtype: "error" } });
       await repo.insert({ entityId: "e1", slotId: "slot-b", type: "start", data: {} });
       await repo.insert({ entityId: "e1", slotId: "slot-b", type: "result", data: { subtype: "success" } });
-      const summary = repo.getSummary("e1");
+      const summary = await repo.getSummary("e1");
       expect(summary).toContain("Attempt 1:");
       expect(summary).toContain("Attempt 2:");
     });
@@ -114,7 +114,7 @@ describe("EntityActivityRepo", () => {
     it("includes prose wrapping", async () => {
       const repo = makeRepo();
       await repo.insert({ entityId: "e1", slotId: "s1", type: "result", data: {} });
-      const summary = repo.getSummary("e1");
+      const summary = await repo.getSummary("e1");
       expect(summary).toContain("Prior work on this entity:");
       expect(summary).toContain("pick up where the last attempt left off");
     });
@@ -125,16 +125,16 @@ describe("EntityActivityRepo", () => {
       const repo = makeRepo();
       await repo.insert({ entityId: "e1", slotId: "s1", type: "start", data: {} });
       await repo.insert({ entityId: "e1", slotId: "s1", type: "result", data: {} });
-      repo.deleteByEntity("e1");
-      expect(repo.getByEntity("e1")).toEqual([]);
+      await repo.deleteByEntity("e1");
+      expect(await repo.getByEntity("e1")).toEqual([]);
     });
 
     it("does not affect other entities", async () => {
       const repo = makeRepo();
       await repo.insert({ entityId: "e1", slotId: "s1", type: "start", data: {} });
       await repo.insert({ entityId: "e2", slotId: "s2", type: "start", data: {} });
-      repo.deleteByEntity("e1");
-      expect(repo.getByEntity("e2")).toHaveLength(1);
+      await repo.deleteByEntity("e1");
+      expect(await repo.getByEntity("e2")).toHaveLength(1);
     });
   });
 });
