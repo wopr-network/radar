@@ -53,7 +53,8 @@ export class RunLoop {
       if (workerRepo) {
         const hostname = globalThis.process?.env?.HOSTNAME ?? "unknown";
         const pid = globalThis.process?.pid ?? 0;
-        const primaryDiscipline = this.config.workerDiscipline ?? this.config.roles[0]?.discipline ?? "unknown";
+        const primaryDiscipline =
+          this.config.workerDiscipline ?? this.config.role ?? this.config.roles?.[0]?.discipline ?? "unknown";
         const worker = await workerRepo.register({
           name: `${this.config.workerIdPrefix ?? "wkr"}-${hostname}-${pid}`,
           type: this.config.workerType ?? "unknown",
@@ -78,8 +79,10 @@ export class RunLoop {
     }
 
     // Expand roles into per-slot discipline assignments
+    const resolvedRoles: import("./types.js").SlotRole[] =
+      this.config.roles ?? (this.config.role != null ? [{ discipline: this.config.role, count: 1 }] : []);
     const slotDisciplines: string[] = [];
-    for (const role of this.config.roles) {
+    for (const role of resolvedRoles) {
       for (let i = 0; i < role.count; i++) {
         slotDisciplines.push(role.discipline);
       }

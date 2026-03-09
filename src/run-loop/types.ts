@@ -17,7 +17,10 @@ export interface RunLoopConfig {
   workerRepo?: IWorkerRepo;
   workerType?: string;
   workerDiscipline?: string;
-  roles: SlotRole[];
+  /** Multi-slot role configuration. Takes precedence over `role`. */
+  roles?: SlotRole[];
+  /** Single-discipline shorthand — equivalent to `roles: [{ discipline, count: pool.size }]`. */
+  role?: string;
   flow?: string;
   pollIntervalMs?: number;
   workerIdPrefix?: string;
