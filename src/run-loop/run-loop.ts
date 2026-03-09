@@ -234,8 +234,15 @@ export class RunLoop {
             artifacts: currentArtifacts,
           });
         } catch (err) {
+          const msg = safeErrorMessage(err);
+          // 409 means the entity already advanced (gate passed, state transitioned).
+          // The invocation is no longer valid — release the slot and move on.
+          if (msg.includes("409")) {
+            logger.info(`[radar] slot ${slotId} report 409 — entity advanced, releasing slot`);
+            break;
+          }
           if (!this.signal.aborted) {
-            logger.error(`[radar] slot ${slotId} report error`, { error: safeErrorMessage(err) });
+            logger.error(`[radar] slot ${slotId} report error`, { error: msg });
             await sleep(this.pollIntervalMs, this.signal);
             continue;
           }
