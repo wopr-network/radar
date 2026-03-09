@@ -1,9 +1,31 @@
 import { describe, expect, it, vi } from "vitest";
 import type { IEntityActivityRepo } from "../db/repos/i-entity-activity-repo.js";
 import type { Dispatcher, WorkerResult } from "../dispatcher/types.js";
+import { FlowCache } from "../flow-cache/index.js";
 import { Pool } from "../pool/pool.js";
 import { RunLoop } from "./run-loop.js";
 import type { RunLoopConfig } from "./types.js";
+
+function makeFlowCache(): FlowCache {
+  const cache = new FlowCache();
+  cache.load([
+    {
+      name: "engineering",
+      initialState: "working",
+      discipline: "engineering",
+      states: [{ name: "working", promptTemplate: "Do the work", modelTier: "sonnet" }],
+      transitions: [{ fromState: "working", toState: "done", trigger: "pr_created" }],
+    },
+    {
+      name: "f1",
+      initialState: "working",
+      discipline: "engineering",
+      states: [{ name: "working", promptTemplate: "Do work", modelTier: "sonnet" }],
+      transitions: [{ fromState: "working", toState: "done", trigger: "done" }],
+    },
+  ]);
+  return cache;
+}
 
 function makeActivityRepo(summary: string): IEntityActivityRepo {
   return {
@@ -38,6 +60,7 @@ function makeConfig(overrides: Partial<RunLoopConfig> = {}): RunLoopConfig {
     defcon: makeDefcon([{ retry_after_ms: 50 }]),
     dispatcher: makeDispatcher({ signal: "pr_created", artifacts: {}, exitCode: 0 }),
     activityRepo: makeActivityRepo(""),
+    flowCache: makeFlowCache(),
     roles: [{ discipline: "engineering", count: 1 }],
     pollIntervalMs: 5,
     ...overrides,
@@ -51,9 +74,11 @@ describe("RunLoop — activity history injection on continue", () => {
 
     const firstClaim = {
       entity_id: "e-1",
-      prompt: "Do the work",
+      invocation_id: "inv-1",
       flow: "engineering",
-      entity_type: "issue",
+      state: "working",
+      refs: {},
+      artifacts: {},
     };
 
     // Sequence: first claim → dispatch returns pr_created → defcon.report is called
@@ -90,9 +115,11 @@ describe("RunLoop — activity history injection on continue", () => {
 
     const firstClaim = {
       entity_id: "e-2",
-      prompt: "Original prompt",
+      invocation_id: "inv-2",
       flow: "engineering",
-      entity_type: "issue",
+      state: "working",
+      refs: {},
+      artifacts: {},
     };
 
     let reportCallCount = 0;
@@ -127,9 +154,11 @@ describe("RunLoop — activityHistory injection on report", () => {
 
     const firstClaim = {
       entity_id: "e-hist",
-      prompt: "Do the work",
+      invocation_id: "inv-hist",
       flow: "engineering",
-      entity_type: "issue",
+      state: "working",
+      refs: {},
+      artifacts: {},
     };
 
     const defcon = {
@@ -159,9 +188,11 @@ describe("RunLoop — activityHistory injection on report", () => {
 
     const firstClaim = {
       entity_id: "e-no-hist",
-      prompt: "Do the work",
+      invocation_id: "inv-no-hist",
       flow: "engineering",
-      entity_type: "issue",
+      state: "working",
+      refs: {},
+      artifacts: {},
     };
 
     const defcon = {
@@ -187,9 +218,11 @@ describe("RunLoop — activityHistory injection on report", () => {
 
     const firstClaim = {
       entity_id: "e-long",
-      prompt: "Do the work",
+      invocation_id: "inv-long",
       flow: "engineering",
-      entity_type: "issue",
+      state: "working",
+      refs: {},
+      artifacts: {},
     };
 
     const defcon = {
@@ -218,8 +251,22 @@ describe("RunLoop — multi-discipline routing", () => {
     const defcon = {
       claim: vi
         .fn()
-        .mockResolvedValueOnce({ entity_id: "e-eng", prompt: "eng work", flow: "f1" })
-        .mockResolvedValueOnce({ entity_id: "e-ops", prompt: "ops work", flow: "f1" })
+        .mockResolvedValueOnce({
+          entity_id: "e-eng",
+          invocation_id: "inv-eng",
+          flow: "f1",
+          state: "working",
+          refs: {},
+          artifacts: {},
+        })
+        .mockResolvedValueOnce({
+          entity_id: "e-ops",
+          invocation_id: "inv-ops",
+          flow: "f1",
+          state: "working",
+          refs: {},
+          artifacts: {},
+        })
         .mockResolvedValue({ retry_after_ms: 50 }),
       report: vi.fn().mockResolvedValue({ next_action: "done" }),
     } as unknown as import("../defcon/client.js").DefconClient;

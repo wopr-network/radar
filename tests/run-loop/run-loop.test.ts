@@ -1,9 +1,31 @@
 import { describe, expect, it, vi } from "vitest";
 import type { DefconClient } from "../../src/defcon/client.js";
-import type { ClaimResponse, ReportResponse } from "../../src/defcon/types.js";
+import type { ClaimResponse, ReportResponse } from "@wopr-network/defcon";
 import type { Dispatcher, DispatchOpts, WorkerResult } from "../../src/dispatcher/types.js";
+import { FlowCache } from "../../src/flow-cache/index.js";
 import { Pool } from "../../src/pool/pool.js";
 import { RunLoop } from "../../src/run-loop/run-loop.js";
+
+function makeFlowCache(): FlowCache {
+  const cache = new FlowCache();
+  cache.load([
+    {
+      name: "test-flow",
+      initialState: "do-work",
+      discipline: "engineering",
+      states: [
+        { name: "do-work", promptTemplate: "Hello world", modelTier: "sonnet" },
+        { name: "step-1", promptTemplate: "Do work", modelTier: "sonnet" },
+        { name: "step-2", promptTemplate: "Second prompt", modelTier: "sonnet" },
+      ],
+      transitions: [
+        { fromState: "do-work", toState: "step-1", trigger: "done" },
+        { fromState: "step-1", toState: "step-2", trigger: "done" },
+      ],
+    },
+  ]);
+  return cache;
+}
 
 function createMockDefcon(overrides?: {
   claim?: () => Promise<ClaimResponse>;
@@ -34,12 +56,12 @@ describe("RunLoop", () => {
         claimCount++;
         if (claimCount === 1) {
           return {
-            
             entity_id: "ent-1",
             invocation_id: "inv-1",
             flow: "test-flow",
-            stage: "do-work",
-            prompt: "Hello world",
+            state: "do-work",
+            refs: {},
+            artifacts: {},
           } satisfies ClaimResponse;
         }
         return {
@@ -63,6 +85,7 @@ describe("RunLoop", () => {
       pool,
       defcon: mockDefcon,
       dispatcher,
+      flowCache: makeFlowCache(),
       role: "engineering",
       pollIntervalMs: 10,
     });
@@ -98,12 +121,12 @@ describe("RunLoop", () => {
         claimCount++;
         if (claimCount === 1) {
           return {
-            
             entity_id: "ent-1",
             invocation_id: "inv-1",
             flow: "test-flow",
-            stage: "step-1",
-            prompt: "First prompt",
+            state: "step-1",
+            refs: {},
+            artifacts: {},
           } satisfies ClaimResponse;
         }
         return { next_action: "check_back" as const, retry_after_ms: 60000, message: "No work" };
@@ -133,6 +156,7 @@ describe("RunLoop", () => {
       pool,
       defcon: mockDefcon,
       dispatcher,
+      flowCache: makeFlowCache(),
       role: "engineering",
       pollIntervalMs: 10,
     });
@@ -144,7 +168,7 @@ describe("RunLoop", () => {
     expect(dispatcher.dispatch).toHaveBeenCalledTimes(2);
     expect(dispatcher.dispatch).toHaveBeenNthCalledWith(
       1,
-      "First prompt",
+      "Do work",
       expect.objectContaining({ entityId: "ent-1" }),
     );
     expect(dispatcher.dispatch).toHaveBeenNthCalledWith(
@@ -162,12 +186,12 @@ describe("RunLoop", () => {
         claimCount++;
         if (claimCount === 1) {
           return {
-            
             entity_id: "ent-1",
             invocation_id: "inv-1",
             flow: "test-flow",
-            stage: "step-1",
-            prompt: "Do work",
+            state: "step-1",
+            refs: {},
+            artifacts: {},
           } satisfies ClaimResponse;
         }
         return { next_action: "check_back" as const, retry_after_ms: 60000, message: "No work" };
@@ -197,6 +221,7 @@ describe("RunLoop", () => {
       pool,
       defcon: mockDefcon,
       dispatcher,
+      flowCache: makeFlowCache(),
       role: "engineering",
       pollIntervalMs: 10,
     });
@@ -216,12 +241,12 @@ describe("RunLoop", () => {
         claimCount++;
         if (claimCount === 1) {
           return {
-            
             entity_id: "ent-1",
             invocation_id: "inv-1",
             flow: "test-flow",
-            stage: "step-1",
-            prompt: "Crash me",
+            state: "step-1",
+            refs: {},
+            artifacts: {},
           } satisfies ClaimResponse;
         }
         return { next_action: "check_back" as const, retry_after_ms: 60000, message: "No work" };
@@ -245,6 +270,7 @@ describe("RunLoop", () => {
       pool,
       defcon: mockDefcon,
       dispatcher: failDispatcher,
+      flowCache: makeFlowCache(),
       role: "engineering",
       pollIntervalMs: 10,
     });
@@ -266,13 +292,12 @@ describe("RunLoop", () => {
     let dispatchResolved = false;
     const mockDefcon = createMockDefcon({
       claim: vi.fn(async () => ({
-        
         entity_id: "ent-1",
         invocation_id: "inv-1",
         flow: "test-flow",
-        stage: "step-1",
-        prompt: "Slow work",
-        // This claim always returns work but we stop early (50ms) before dispatch finishes (150ms)
+        state: "step-1",
+        refs: {},
+        artifacts: {},
       })),
       report: vi.fn(async () => ({
         next_action: "waiting" as const,
@@ -295,6 +320,7 @@ describe("RunLoop", () => {
       pool,
       defcon: mockDefcon,
       dispatcher: slowDispatcher,
+      flowCache: makeFlowCache(),
       role: "engineering",
       pollIntervalMs: 10,
     });

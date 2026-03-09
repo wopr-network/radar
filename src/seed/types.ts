@@ -20,10 +20,12 @@ export const SeedWatchSchema = z.object({
 export const SeedStateSchema = z
   .object({
     name: z.string().min(1),
+    agentRole: z.string().optional(),
     modelTier: z.string().optional(),
     mode: z.enum(["passive", "active"]).optional(),
     promptTemplate: z.string().optional(),
     constraints: z.record(z.string(), z.unknown()).optional(),
+    meta: z.record(z.string(), z.unknown()).optional(),
   })
   .strict();
 

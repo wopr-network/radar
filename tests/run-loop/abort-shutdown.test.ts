@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { DefconClient } from "../../src/defcon/client.js";
-import type { ClaimResponse, ReportResponse } from "../../src/defcon/types.js";
+import type { ClaimResponse, ReportResponse } from "@wopr-network/defcon";
 import type { Dispatcher, DispatchOpts, WorkerResult } from "../../src/dispatcher/types.js";
+import { FlowCache } from "../../src/flow-cache/index.js";
 import { Pool } from "../../src/pool/pool.js";
 import { RunLoop } from "../../src/run-loop/run-loop.js";
 
@@ -97,6 +98,7 @@ describe("RunLoop abort-aware shutdown", () => {
       pool,
       defcon: mockDefcon,
       dispatcher,
+      flowCache: new FlowCache(),
       role: "engineering",
       pollIntervalMs: 10,
       stopTimeoutMs: 500,
@@ -119,12 +121,12 @@ describe("RunLoop abort-aware shutdown", () => {
         claimCount++;
         if (claimCount === 1) {
           return {
-            
             entity_id: "ent-1",
             invocation_id: "inv-1",
             flow: "f",
-            stage: "s",
-            prompt: "go",
+            state: "s",
+            refs: {},
+            artifacts: {},
           } satisfies ClaimResponse;
         }
         return { next_action: "check_back" as const, retry_after_ms: 60000, message: "no" };
@@ -150,6 +152,7 @@ describe("RunLoop abort-aware shutdown", () => {
       pool,
       defcon: mockDefcon,
       dispatcher,
+      flowCache: new FlowCache(),
       role: "engineering",
       pollIntervalMs: 10,
       stopTimeoutMs: 500,

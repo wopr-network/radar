@@ -197,11 +197,44 @@ export class RunLoop {
     logger.info(`[radar] slot ${slotId} claimed entity`, {
       entity: claim.entity_id,
       flow: claim.flow ?? "none",
-      stage: (claim as Record<string, unknown>).stage ?? "?",
+      state: claim.state,
     });
 
     const claimFlow = claim.flow;
-    const claimRepo = extractRepoFromDescription(claim.prompt);
+
+    // Look up dispatch config from local flow cache
+    const { flowCache } = this.config;
+    const stateConfig = claimFlow ? flowCache.getStateConfig(claimFlow, claim.state) : null;
+
+    if (claimFlow && !stateConfig) {
+      logger.error(`[radar] flow cache miss: flow=${claimFlow} state=${claim.state} — check seed file`);
+      try {
+        await defcon.report({
+          entityId: claim.entity_id,
+          signal: "crash",
+          artifacts: { error: `Flow cache miss: flow=${claimFlow} state=${claim.state}` },
+        });
+      } catch {}
+      await sleep(this.pollIntervalMs, this.signal);
+      return;
+    }
+
+    const modelTier = stateConfig?.modelTier ?? "sonnet";
+    const agentRole = stateConfig?.agentRole ?? null;
+    const promptTemplate = stateConfig?.promptTemplate ?? null;
+
+    // Render prompt from template + entity data
+    const renderedPrompt = promptTemplate
+      ? flowCache.renderPrompt(promptTemplate, claim.refs, claim.artifacts)
+      : `Process entity ${claim.entity_id} in state ${claim.state}`;
+
+    // Extract repo: prefer structured refs/artifacts, fall back to prompt text
+    const refsObj = (claim.refs ?? {}) as Record<string, unknown>;
+    const artifactsObj = (claim.artifacts ?? {}) as Record<string, unknown>;
+    const structuredRepo =
+      (typeof refsObj.repo === "string" ? refsObj.repo : null) ??
+      (typeof artifactsObj.repo === "string" ? artifactsObj.repo : null);
+    const claimRepo = structuredRepo ?? extractRepoFromDescription(renderedPrompt);
 
     // Concurrency gate: per-repo limit — checked BEFORE allocating a slot
     // so we skip rather than crash the entity
@@ -222,7 +255,7 @@ export class RunLoop {
       }
     }
 
-    const slot = pool.allocate(slotId, workerId, discipline, claim.entity_id, claim.prompt, claimFlow, claimRepo);
+    const slot = pool.allocate(slotId, workerId, discipline, claim.entity_id, renderedPrompt, claimFlow, claimRepo);
     if (!slot) {
       try {
         await defcon.report({
@@ -236,16 +269,8 @@ export class RunLoop {
     }
 
     try {
-      const claimAny = claim as Record<string, unknown>;
-      const rawModelTier = (claimAny.model_tier as string | undefined) ?? "sonnet";
-      const modelTier: "opus" | "sonnet" | "haiku" =
-        rawModelTier === "opus" || rawModelTier === "haiku" ? rawModelTier : "sonnet";
-      // agentRole is fixed for the lifetime of this claim. On `continue` responses the
-      // new prompt is applied but the agent role stays the same — the next stage's
-      // invocation will be claimed fresh with its own agentRole set by defcon.
-      const agentRole = (claimAny.agent_role as string | null | undefined) ?? null;
-      const originalPrompt = claim.prompt;
-      let currentPrompt = claim.prompt;
+      const originalPrompt = renderedPrompt;
+      let currentPrompt = renderedPrompt;
       let currentSignal: string | undefined;
       let currentArtifacts: Record<string, unknown> | undefined;
       const startTime = Date.now();
@@ -268,7 +293,7 @@ export class RunLoop {
               workerId,
               entityId: claim.entity_id,
               agentRole,
-              templateContext: ((claim as Record<string, unknown>).context as Record<string, unknown> | null) ?? null,
+              templateContext: { ...claim.refs, ...claim.artifacts },
             });
             logger.info(`[radar] slot ${slotId} dispatch done`, {
               signal: result.signal,

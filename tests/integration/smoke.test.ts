@@ -20,8 +20,9 @@ import type { SourceRow } from "../../src/db/repos/source-repo.js";
 import { WatchRepo } from "../../src/db/repos/watch-repo.js";
 import type { WatchRow } from "../../src/db/repos/watch-repo.js";
 import type { DefconClient } from "../../src/defcon/client.js";
-import type { ClaimResponse, ReportResponse } from "../../src/defcon/types.js";
+import type { ClaimResponse, ReportResponse } from "@wopr-network/defcon";
 import type { Dispatcher, DispatchOpts, WorkerResult } from "../../src/dispatcher/types.js";
+import { FlowCache } from "../../src/flow-cache/index.js";
 import { Ingestor } from "../../src/ingestion/ingestor.js";
 import { GenericSourceAdapter, SourceAdapterRegistry } from "../../src/sources/index.js";
 import { Pool } from "../../src/pool/pool.js";
@@ -231,9 +232,9 @@ describe("Integration smoke test", () => {
             entity_id: "entity-smoke-1",
             invocation_id: "inv-smoke",
             flow: "smoke-flow",
-            stage: "do-work",
-            prompt: "You are working on a smoke test",
-            context: null,
+            state: "do-work",
+            refs: {},
+            artifacts: {},
           } satisfies ClaimResponse;
         }
         return {
@@ -283,10 +284,21 @@ describe("Integration smoke test", () => {
     port = typeof addr === "object" && addr ? addr.port : 0;
 
     // 7. RunLoop wired to same mock DEFCON + echo dispatcher
+    const flowCache = new FlowCache();
+    flowCache.load([
+      {
+        name: "smoke-flow",
+        initialState: "do-work",
+        discipline: "engineering",
+        states: [{ name: "do-work", promptTemplate: "You are working on a smoke test", modelTier: "sonnet" }],
+        transitions: [{ fromState: "do-work", toState: "done", trigger: "done" }],
+      },
+    ]);
     runLoop = new RunLoop({
       pool,
       defcon: mockDefcon,
       dispatcher: echoDispatcher,
+      flowCache,
       role: "engineering",
       pollIntervalMs: 10,
     });
