@@ -37,7 +37,7 @@ function toRow(raw: typeof workers.$inferSelect): WorkerRow {
 export class WorkerRepo implements IWorkerRepo {
   constructor(private db: RadarDb) {}
 
-  register(input: RegisterWorkerInput): Promise<WorkerRow> {
+  register(input: RegisterWorkerInput): WorkerRow {
     const id = crypto.randomUUID();
     const now = Math.floor(Date.now() / 1000);
     this.db
@@ -55,39 +55,36 @@ export class WorkerRepo implements IWorkerRepo {
       .run();
     const row = this.db.select().from(workers).where(eq(workers.id, id)).get();
     if (!row) throw new Error("Insert failed");
-    return Promise.resolve(toRow(row));
+    return toRow(row);
   }
 
-  deregister(id: string): Promise<void> {
+  deregister(id: string): void {
     this.db.delete(workers).where(eq(workers.id, id)).run();
-    return Promise.resolve();
   }
 
-  heartbeat(id: string): Promise<void> {
+  heartbeat(id: string): void {
     const now = Math.floor(Date.now() / 1000);
     const row = this.db.select().from(workers).where(eq(workers.id, id)).get();
     if (!row) throw new Error(`Unknown worker: ${id}`);
     this.db.update(workers).set({ lastHeartbeat: now }).where(eq(workers.id, id)).run();
-    return Promise.resolve();
   }
 
-  setStatus(id: string, status: string): Promise<void> {
+  setStatus(id: string, status: string): void {
     const row = this.db.select().from(workers).where(eq(workers.id, id)).get();
     if (!row) throw new Error(`Worker ${id} not found`);
     this.db.update(workers).set({ status }).where(eq(workers.id, id)).run();
-    return Promise.resolve();
   }
 
-  getById(id: string): Promise<WorkerRow | undefined> {
+  getById(id: string): WorkerRow | undefined {
     const row = this.db.select().from(workers).where(eq(workers.id, id)).get();
-    return Promise.resolve(row ? toRow(row) : undefined);
+    return row ? toRow(row) : undefined;
   }
 
-  list(): Promise<WorkerRow[]> {
-    return Promise.resolve(this.db.select().from(workers).all().map(toRow));
+  list(): WorkerRow[] {
+    return this.db.select().from(workers).all().map(toRow);
   }
 
-  listByStatus(status: string): Promise<WorkerRow[]> {
-    return Promise.resolve(this.db.select().from(workers).where(eq(workers.status, status)).all().map(toRow));
+  listByStatus(status: string): WorkerRow[] {
+    return this.db.select().from(workers).where(eq(workers.status, status)).all().map(toRow);
   }
 }

@@ -53,7 +53,7 @@ export class RunLoop {
       if (workerRepo) {
         const hostname = globalThis.process?.env?.HOSTNAME ?? "unknown";
         const pid = globalThis.process?.pid ?? 0;
-        const worker = await workerRepo.register({
+        const worker = workerRepo.register({
           name: `${this.config.workerIdPrefix ?? "wkr"}-${hostname}-${pid}`,
           type: this.config.workerType ?? "unknown",
           discipline: this.config.workerDiscipline ?? this.config.role,
@@ -64,9 +64,11 @@ export class RunLoop {
         // Heartbeat once per process per interval (not per slot per cycle)
         const heartbeatTimer = setInterval(() => {
           if (this.registeredWorkerId && this.config.workerRepo) {
-            this.config.workerRepo.heartbeat(this.registeredWorkerId).catch(() => {
+            try {
+              this.config.workerRepo.heartbeat(this.registeredWorkerId);
+            } catch {
               // Non-fatal — heartbeat failure shouldn't crash the loop
-            });
+            }
           }
         }, this.pollIntervalMs);
         this.abortController.signal.addEventListener("abort", () => clearInterval(heartbeatTimer), { once: true });
