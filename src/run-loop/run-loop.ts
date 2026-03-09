@@ -285,6 +285,28 @@ export class RunLoop {
           }
         }
 
+        let activityHistory: string | null = null;
+        if (this.config.activityRepo) {
+          try {
+            activityHistory = await this.config.activityRepo.getSummary(claim.entity_id);
+            if (activityHistory) {
+              activityHistory = activityHistory.trim();
+              const MAX_HISTORY_CHARS = 8000;
+              if (activityHistory.length > MAX_HISTORY_CHARS) {
+                activityHistory = `${activityHistory.slice(0, MAX_HISTORY_CHARS)}\n\n[...history truncated]`;
+              }
+            }
+          } catch (err) {
+            logger.warn(`[radar] slot ${slotId} failed to get activity history`, {
+              error: safeErrorMessage(err),
+            });
+          }
+        }
+
+        if (activityHistory) {
+          currentArtifacts = { ...(currentArtifacts ?? {}), activityHistory: activityHistory };
+        }
+
         pool.setState(slotId, "reporting");
         let response: ReportResponse;
         try {
@@ -305,18 +327,8 @@ export class RunLoop {
         logger.info(`[radar] slot ${slotId} report ack`, { next_action: response.next_action });
 
         if (response.next_action === "continue") {
-          let history = "";
-          if (this.config.activityRepo) {
-            try {
-              history = await this.config.activityRepo.getSummary(claim.entity_id);
-            } catch (err) {
-              logger.warn(`[radar] slot ${slotId} getSummary failed, continuing without history`, {
-                error: safeErrorMessage(err),
-              });
-            }
-          }
           const basePrompt = response.prompt ?? originalPrompt;
-          currentPrompt = history ? `${history}\n\n---\n${basePrompt}` : basePrompt;
+          currentPrompt = activityHistory ? `${activityHistory}\n\n---\n${basePrompt}` : basePrompt;
           currentSignal = undefined;
           currentArtifacts = undefined;
           continue;
