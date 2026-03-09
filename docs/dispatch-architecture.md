@@ -103,7 +103,7 @@ entity created → first dispatch → container launched → session starts
 entity done → container stopped and removed
 ```
 
-Containers are reaped after a configurable timeout (default 30 minutes) if no dispatch arrives.
+The `DEFAULT_TIMEOUT_MS` (30 minutes) is the SSE stream read deadline — not a container idle TTL. Container cleanup happens when the entity completes (`stopEntity`) or on RADAR shutdown (`stopAll`). There is no automatic idle reaper yet; orphaned containers from crashed RADAR processes must be cleaned up manually (`docker rm -f $(docker ps -q --filter label=nuke.entity)`).
 
 ### SdkDispatcher — In-process Claude Agent SDK
 
@@ -125,7 +125,7 @@ RADAR process
   ```
   npx -y mcp-remote https://mcp.linear.app/mcp --header "Authorization: Bearer <key>"
   ```
-- **Activity tracking.** Inserts `start`, `tool_use`, `text`, `result` rows into the activity repo just like NukeDispatcher.
+- **Activity tracking.** Inserts `start`, `tool_use`, `text`, `result` rows into the activity repo. Both SdkDispatcher and NukeDispatcher follow this convention — a `start` row marks each attempt boundary.
 
 **Model mapping:**
 

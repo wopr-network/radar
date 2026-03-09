@@ -4,9 +4,9 @@ import { NukeDispatcher } from "./nuke-dispatcher.js";
 describe("NukeDispatcher", () => {
   const mockRepo = {
     insert: vi.fn().mockResolvedValue(undefined),
-    getByEntity: vi.fn().mockReturnValue([]),
-    getSummary: vi.fn().mockReturnValue(""),
-    deleteByEntity: vi.fn(),
+    getByEntity: vi.fn().mockResolvedValue([]),
+    getSummary: vi.fn().mockResolvedValue(""),
+    deleteByEntity: vi.fn().mockResolvedValue(undefined),
   };
 
   it("implements Dispatcher interface", () => {

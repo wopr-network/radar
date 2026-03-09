@@ -66,57 +66,75 @@ async function launchContainer(
 
   const containerId = execFileSync("docker", args, { encoding: "utf-8" }).trim();
 
-  // Wait for the host port to be assigned
-  const maxWait = 15_000;
-  const start = Date.now();
-  let hostPort: number | null = null;
+  try {
+    // Wait for the host port to be assigned
+    const maxWait = 15_000;
+    const start = Date.now();
+    let hostPort: number | null = null;
 
-  while (Date.now() - start < maxWait) {
-    try {
-      const inspectOutput = execFileSync("docker", ["inspect", containerId], { encoding: "utf-8" });
-      const inspect = JSON.parse(inspectOutput) as Array<{
-        NetworkSettings?: {
-          Ports?: Record<string, Array<{ HostPort?: string }>>;
-        };
-      }>;
-      const portMap = inspect[0]?.NetworkSettings?.Ports?.[`${containerPort}/tcp`];
-      if (portMap?.[0]?.HostPort) {
-        hostPort = Number(portMap[0].HostPort);
-        break;
+    while (Date.now() - start < maxWait) {
+      try {
+        const inspectOutput = execFileSync("docker", ["inspect", containerId], { encoding: "utf-8" });
+        const inspect = JSON.parse(inspectOutput) as Array<{
+          NetworkSettings?: {
+            Ports?: Record<string, Array<{ HostPort?: string }>>;
+          };
+        }>;
+        const portMap = inspect[0]?.NetworkSettings?.Ports?.[`${containerPort}/tcp`];
+        if (portMap?.[0]?.HostPort) {
+          hostPort = Number(portMap[0].HostPort);
+          break;
+        }
+      } catch {
+        // retry
       }
-    } catch {
-      // retry
+      await new Promise<void>((r) => setTimeout(r, 500));
     }
-    await new Promise<void>((r) => setTimeout(r, 500));
-  }
 
-  if (!hostPort) {
-    throw new Error(`Container ${containerId} did not expose port within ${maxWait}ms`);
-  }
+    if (!hostPort) {
+      throw new Error(`Container ${containerId} did not expose port within ${maxWait}ms`);
+    }
 
-  // Wait for /health
-  const healthStart = Date.now();
-  while (Date.now() - healthStart < maxWait) {
+    // Wait for /health
+    let healthy = false;
+    const healthStart = Date.now();
+    while (Date.now() - healthStart < maxWait) {
+      try {
+        const res = await fetch(`http://127.0.0.1:${hostPort}/health`);
+        if (res.ok) {
+          healthy = true;
+          break;
+        }
+      } catch {
+        // retry
+      }
+      await new Promise<void>((r) => setTimeout(r, 500));
+    }
+
+    if (!healthy) {
+      throw new Error(`Container ${containerId} did not pass health check within ${maxWait}ms`);
+    }
+
+    const handle: ContainerHandle = { containerId, hostPort, sessionId: null };
+    containers.set(entityId, handle);
+
+    logger.info(`[nuke] container launched`, {
+      entityId,
+      containerId: containerId.slice(0, 12),
+      hostPort,
+      image,
+    });
+
+    return handle;
+  } catch (err) {
+    // Clean up the already-started container before re-throwing
     try {
-      const res = await fetch(`http://127.0.0.1:${hostPort}/health`);
-      if (res.ok) break;
+      execFileSync("docker", ["rm", "-f", containerId], { encoding: "utf-8" });
     } catch {
-      // retry
+      // best effort
     }
-    await new Promise<void>((r) => setTimeout(r, 500));
+    throw err;
   }
-
-  const handle: ContainerHandle = { containerId, hostPort, sessionId: null };
-  containers.set(entityId, handle);
-
-  logger.info(`[nuke] container launched`, {
-    entityId,
-    containerId: containerId.slice(0, 12),
-    hostPort,
-    image,
-  });
-
-  return handle;
 }
 
 function stopContainer(entityId: string): void {
@@ -180,6 +198,8 @@ export class NukeDispatcher implements Dispatcher {
         };
       }
     }
+
+    await this.safeInsert(entityId, workerId, "start", { modelTier });
 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeout);
@@ -295,7 +315,7 @@ export class NukeDispatcher implements Dispatcher {
   private async safeInsert(
     entityId: string,
     slotId: string,
-    type: "tool_use" | "text" | "result",
+    type: "start" | "tool_use" | "text" | "result",
     data: Record<string, unknown>,
   ): Promise<void> {
     try {
