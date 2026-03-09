@@ -10,7 +10,6 @@ import type { DispatchOpts, INukeDispatcher, WorkerResult } from "./types.js";
 
 const DEFAULT_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 const DEFAULT_AGENTS_DIR = join(homedir(), ".claude", "agents");
-const HISTORY_CHAR_CAP = 4000;
 
 const MODEL_MAP: Record<DispatchOpts["modelTier"], string> = {
   opus: "claude-opus-4-6",
@@ -71,22 +70,9 @@ export class SdkDispatcher implements INukeDispatcher {
           agentMd = rawAgentMd;
         }
       }
-      // Fetch prior activity before inserting the start row for this dispatch.
-      // A non-empty summary means the entity has been worked on before (re-entry).
-      let historySummary = "";
-      try {
-        historySummary = await this.activityRepo.getSummary(entityId);
-      } catch (dbErr) {
-        logger.warn(`[claude] [${slotId}] failed to fetch activity summary`, {
-          error: dbErr instanceof Error ? dbErr.message : String(dbErr),
-        });
-      }
-      if (historySummary.length > HISTORY_CHAR_CAP) {
-        historySummary = `${historySummary.slice(0, HISTORY_CHAR_CAP)}\n[history truncated]`;
-      }
-
-      const promptWithHistory = historySummary ? `${historySummary}\n\n---\n\n${prompt}` : prompt;
-      const fullPrompt = agentMd ? `${agentMd}\n\n---\n\n${promptWithHistory}` : promptWithHistory;
+      // History injection is handled by the run-loop before calling dispatch().
+      // SdkDispatcher dispatches with whatever prompt it receives.
+      const fullPrompt = agentMd ? `${agentMd}\n\n---\n\n${prompt}` : prompt;
 
       logger.info(`[claude] [${slotId}] START`, {
         entity: entityId,
