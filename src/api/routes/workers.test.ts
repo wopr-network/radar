@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { Router } from "../router.js";
-import type { WorkerRepo, WorkerRow } from "../types.js";
+import type { IWorkerRepo, WorkerRow } from "../types.js";
 import { registerWorkerRoutes } from "./workers.js";
 
 function makeWorkerRow(overrides: Partial<WorkerRow> = {}): WorkerRow {
@@ -17,21 +17,21 @@ function makeWorkerRow(overrides: Partial<WorkerRow> = {}): WorkerRow {
   };
 }
 
-function makeRepo(overrides: Partial<WorkerRepo> = {}): WorkerRepo {
+function makeRepo(overrides: Partial<IWorkerRepo> = {}): IWorkerRepo {
   const row = makeWorkerRow();
   return {
-    register: vi.fn().mockReturnValue(row),
-    deregister: vi.fn(),
-    heartbeat: vi.fn(),
-    setStatus: vi.fn(),
-    getById: vi.fn().mockReturnValue(row),
-    list: vi.fn().mockReturnValue([row]),
-    listByStatus: vi.fn().mockReturnValue([]),
+    register: vi.fn().mockResolvedValue(row),
+    deregister: vi.fn().mockResolvedValue(undefined),
+    heartbeat: vi.fn().mockResolvedValue(undefined),
+    setStatus: vi.fn().mockResolvedValue(undefined),
+    getById: vi.fn().mockResolvedValue(row),
+    list: vi.fn().mockResolvedValue([row]),
+    listByStatus: vi.fn().mockResolvedValue([]),
     ...overrides,
-  } as unknown as WorkerRepo;
+  } as unknown as IWorkerRepo;
 }
 
-function makeRouter(repo: WorkerRepo): Router {
+function makeRouter(repo: IWorkerRepo): Router {
   const router = new Router();
   registerWorkerRoutes(router, repo);
   return router;
@@ -40,7 +40,7 @@ function makeRouter(repo: WorkerRepo): Router {
 describe("GET /api/workers", () => {
   it("returns list of workers from repo", async () => {
     const row = makeWorkerRow({ id: "w-99" });
-    const repo = makeRepo({ list: vi.fn().mockReturnValue([row]) });
+    const repo = makeRepo({ list: vi.fn().mockResolvedValue([row]) });
     const router = makeRouter(repo);
 
     const result = await router.handle("GET", "/api/workers", "", new URLSearchParams());
@@ -52,7 +52,7 @@ describe("GET /api/workers", () => {
 describe("POST /api/workers", () => {
   it("registers a worker and returns 201 with the created row", async () => {
     const created = makeWorkerRow({ id: "w-new", name: "my-worker" });
-    const repo = makeRepo({ register: vi.fn().mockReturnValue(created) });
+    const repo = makeRepo({ register: vi.fn().mockResolvedValue(created) });
     const router = makeRouter(repo);
 
     const result = await router.handle(
@@ -101,7 +101,7 @@ describe("DELETE /api/workers/:id", () => {
   });
 
   it("returns 404 when worker does not exist", async () => {
-    const repo = makeRepo({ getById: vi.fn().mockReturnValue(undefined) });
+    const repo = makeRepo({ getById: vi.fn().mockResolvedValue(undefined) });
     const router = makeRouter(repo);
 
     const result = await router.handle("DELETE", "/api/workers/missing", "", new URLSearchParams());
@@ -121,7 +121,7 @@ describe("POST /api/workers/:id/heartbeat", () => {
   });
 
   it("returns 404 when worker does not exist", async () => {
-    const repo = makeRepo({ getById: vi.fn().mockReturnValue(undefined) });
+    const repo = makeRepo({ getById: vi.fn().mockResolvedValue(undefined) });
     const router = makeRouter(repo);
 
     const result = await router.handle("POST", "/api/workers/missing/heartbeat", "", new URLSearchParams());

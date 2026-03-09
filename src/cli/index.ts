@@ -409,7 +409,7 @@ export function buildProgram(): Command {
       logger.info(
         `[radar] Starting ${opts.workers} worker slots — role: ${opts.role}${opts.flow ? ` — flow: ${opts.flow}` : ""}${opts.worker ? ` — worker: ${opts.worker}` : ""}`,
       );
-      loop.start();
+      await loop.start();
 
       let shuttingDown = false;
       const shutdown = async () => {

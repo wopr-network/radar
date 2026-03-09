@@ -42,23 +42,38 @@ export class RunLoop {
     this.pollIntervalMs = config.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS;
   }
 
-  start(): void {
+  async start(): Promise<void> {
     if (this.abortController) throw new Error("RunLoop already started");
     this.abortController = new AbortController();
     const { pool, workerRepo } = this.config;
 
     // Register worker in DB if repo provided
     let workerIdForSlots = `${this.config.workerIdPrefix ?? "wkr"}-${randomUUID().slice(0, 8)}`;
-    if (workerRepo) {
-      const hostname = globalThis.process?.env?.HOSTNAME ?? "unknown";
-      const pid = globalThis.process?.pid ?? 0;
-      const worker = workerRepo.register({
-        name: `${this.config.workerIdPrefix ?? "wkr"}-${hostname}-${pid}`,
-        type: this.config.workerType ?? "unknown",
-        discipline: this.config.workerDiscipline ?? this.config.role,
-      });
-      this.registeredWorkerId = worker.id;
-      workerIdForSlots = worker.id;
+    try {
+      if (workerRepo) {
+        const hostname = globalThis.process?.env?.HOSTNAME ?? "unknown";
+        const pid = globalThis.process?.pid ?? 0;
+        const worker = await workerRepo.register({
+          name: `${this.config.workerIdPrefix ?? "wkr"}-${hostname}-${pid}`,
+          type: this.config.workerType ?? "unknown",
+          discipline: this.config.workerDiscipline ?? this.config.role,
+        });
+        this.registeredWorkerId = worker.id;
+        workerIdForSlots = worker.id;
+
+        // Heartbeat once per process per interval (not per slot per cycle)
+        const heartbeatTimer = setInterval(() => {
+          if (this.registeredWorkerId && this.config.workerRepo) {
+            this.config.workerRepo.heartbeat(this.registeredWorkerId).catch(() => {
+              // Non-fatal — heartbeat failure shouldn't crash the loop
+            });
+          }
+        }, this.pollIntervalMs);
+        this.abortController.signal.addEventListener("abort", () => clearInterval(heartbeatTimer), { once: true });
+      }
+    } catch (err) {
+      this.abortController = null;
+      throw err;
     }
 
     const capacity = pool.availableSlots();
@@ -152,15 +167,6 @@ export class RunLoop {
       claim = await defcon.claim({ workerId, role, flow }, { signal: this.signal });
     } finally {
       this.pendingClaims--;
-    }
-
-    // Heartbeat the worker on each claim cycle
-    if (this.registeredWorkerId && this.config.workerRepo) {
-      try {
-        this.config.workerRepo.heartbeat(this.registeredWorkerId);
-      } catch {
-        // Non-fatal — heartbeat failure shouldn't crash the slot
-      }
     }
 
     if (!isWorkClaim(claim)) {

@@ -1,11 +1,24 @@
 import type { IEntityActivityRepo } from "../db/repos/i-entity-activity-repo.js";
-import type { RegisterWorkerInput, WorkerRepo, WorkerRow } from "../db/repos/worker-repo.js";
+import type { RegisterWorkerInput, WorkerRow } from "../db/repos/worker-repo.js";
 import type { DefconClient } from "../defcon/index.js";
 import type { IngestEvent } from "../ingestion/types.js";
 import type { Pool } from "../pool/index.js";
 import type { SourceAdapterRegistry } from "../sources/adapter.js";
 
-export type { WorkerRepo, WorkerRow, RegisterWorkerInput };
+export type { WorkerRow, RegisterWorkerInput };
+
+export interface IWorkerRepo {
+  register(input: RegisterWorkerInput): Promise<WorkerRow>;
+  deregister(id: string): Promise<void>;
+  heartbeat(id: string): Promise<void>;
+  setStatus(id: string, status: string): Promise<void>;
+  getById(id: string): Promise<WorkerRow | undefined>;
+  list(): Promise<WorkerRow[]>;
+  listByStatus(status: string): Promise<WorkerRow[]>;
+}
+
+/** @deprecated Use IWorkerRepo instead */
+export type WorkerRepo = IWorkerRepo;
 
 export interface RouteParams {
   [key: string]: string;
@@ -37,7 +50,7 @@ export interface AppDeps {
   sourceRepo: SourceRepo;
   watchRepo: WatchRepo;
   eventLogRepo: EventLogRepo;
-  workerRepo: WorkerRepo;
+  workerRepo: IWorkerRepo;
   activityRepo: IEntityActivityRepo;
   pool: Pool;
   defconClient: DefconClient;

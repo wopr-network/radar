@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { WorkerRepo, WorkerRow } from "../api/types.js";
+import type { IWorkerRepo, WorkerRow } from "../api/types.js";
 import type { Dispatcher } from "../dispatcher/types.js";
 import { Pool } from "../pool/pool.js";
 import { RunLoop } from "./run-loop.js";
@@ -19,17 +19,17 @@ function makeWorkerRow(overrides: Partial<WorkerRow> = {}): WorkerRow {
   };
 }
 
-function makeWorkerRepo(id = "worker-1"): WorkerRepo {
+function makeWorkerRepo(id = "worker-1"): IWorkerRepo {
   const row = makeWorkerRow({ id });
   return {
-    register: vi.fn().mockReturnValue(row),
-    deregister: vi.fn(),
-    heartbeat: vi.fn(),
-    setStatus: vi.fn(),
-    getById: vi.fn().mockReturnValue(row),
-    list: vi.fn().mockReturnValue([row]),
-    listByStatus: vi.fn().mockReturnValue([]),
-  } as unknown as WorkerRepo;
+    register: vi.fn().mockResolvedValue(row),
+    deregister: vi.fn().mockResolvedValue(undefined),
+    heartbeat: vi.fn().mockResolvedValue(undefined),
+    setStatus: vi.fn().mockResolvedValue(undefined),
+    getById: vi.fn().mockResolvedValue(row),
+    list: vi.fn().mockResolvedValue([row]),
+    listByStatus: vi.fn().mockResolvedValue([]),
+  } as unknown as IWorkerRepo;
 }
 
 function makeDefcon(responses: object[]) {
@@ -70,7 +70,7 @@ describe("RunLoop — worker registration lifecycle", () => {
         workerIdPrefix: "wkr",
       }),
     );
-    loop.start();
+    await loop.start();
     await loop.stop();
     expect(workerRepo.register).toHaveBeenCalledOnce();
     const call = (workerRepo.register as ReturnType<typeof vi.fn>).mock.calls[0][0];
@@ -80,7 +80,7 @@ describe("RunLoop — worker registration lifecycle", () => {
 
   it("does not call workerRepo.register when workerRepo is absent", async () => {
     const loop = new RunLoop(makeConfig());
-    loop.start();
+    await loop.start();
     await loop.stop();
     // no error — just testing no crash
   });
@@ -88,55 +88,46 @@ describe("RunLoop — worker registration lifecycle", () => {
   it("calls workerRepo.deregister on stop using the registered id", async () => {
     const workerRepo = makeWorkerRepo("w-abc");
     const loop = new RunLoop(makeConfig({ workerRepo }));
-    loop.start();
+    await loop.start();
     await loop.stop();
     expect(workerRepo.deregister).toHaveBeenCalledWith("w-abc");
   });
 
-  it("calls workerRepo.heartbeat after each claim cycle", async () => {
+  it("calls workerRepo.heartbeat on the heartbeat interval", async () => {
+    vi.useFakeTimers();
     const workerRepo = makeWorkerRepo("w-hb");
-    const claimResponse = {
-      entity_id: "e-1",
-      prompt: "Do work",
-      flow: "engineering",
-      entity_type: "issue",
-    };
-    const defcon = makeDefcon([claimResponse]);
-    (defcon.report as ReturnType<typeof vi.fn>).mockResolvedValue({ next_action: "waiting" });
+    const loop = new RunLoop(makeConfig({ workerRepo, pollIntervalMs: 100 }));
+    await loop.start();
 
-    const loop = new RunLoop(makeConfig({ workerRepo, defcon }));
-    loop.start();
-    await loop.stop();
+    // Advance past one heartbeat interval
+    await vi.advanceTimersByTimeAsync(110);
 
     expect(workerRepo.heartbeat).toHaveBeenCalledWith("w-hb");
+
+    vi.useRealTimers();
+    await loop.stop();
   });
 
   it("does not crash if workerRepo.deregister throws on stop", async () => {
     const workerRepo = makeWorkerRepo();
-    (workerRepo.deregister as ReturnType<typeof vi.fn>).mockImplementation(() => {
-      throw new Error("db error");
-    });
+    (workerRepo.deregister as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("db error"));
     const loop = new RunLoop(makeConfig({ workerRepo }));
-    loop.start();
+    await loop.start();
     await expect(loop.stop()).resolves.toBeUndefined();
   });
 
-  it("does not crash if workerRepo.heartbeat throws during claim", async () => {
+  it("does not crash if workerRepo.heartbeat rejects", async () => {
+    vi.useFakeTimers();
     const workerRepo = makeWorkerRepo("w-hb2");
-    (workerRepo.heartbeat as ReturnType<typeof vi.fn>).mockImplementation(() => {
-      throw new Error("heartbeat error");
-    });
-    const claimResponse = {
-      entity_id: "e-2",
-      prompt: "Do work",
-      flow: "engineering",
-      entity_type: "issue",
-    };
-    const defcon = makeDefcon([claimResponse]);
-    (defcon.report as ReturnType<typeof vi.fn>).mockResolvedValue({ next_action: "waiting" });
+    (workerRepo.heartbeat as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("heartbeat error"));
 
-    const loop = new RunLoop(makeConfig({ workerRepo, defcon }));
-    loop.start();
-    await expect(loop.stop()).resolves.toBeUndefined();
+    const loop = new RunLoop(makeConfig({ workerRepo, pollIntervalMs: 100 }));
+    await loop.start();
+
+    // Advance past one heartbeat interval — should not throw
+    await vi.advanceTimersByTimeAsync(110);
+
+    vi.useRealTimers();
+    await loop.stop();
   });
 });
