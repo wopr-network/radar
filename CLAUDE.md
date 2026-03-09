@@ -16,3 +16,8 @@ npm run check
 - **throughput**: Back ThroughputTracker with DrizzleThroughputRepo/SQLite — ephemeral in-memory arrays violate the DB-backed convention.
 - **interfaces**: Always depend on `IWorkerRepo` (or equivalent interface), never the concrete `WorkerRepo` — direct usage defeats DI and breaks testability.
 - **fire-and-forget promises**: Always `.catch()` promises that are not awaited (e.g., `reap()` in interval callbacks) — unhandled rejections crash the process.
+- **Map iteration**: Snapshot Map keys (`[...map.keys()]`) before iterating if the loop body may delete entries — direct iteration over a mutating Map skips elements.
+- **child_process**: Never use `execFileSync` / `execSync` in production code — blocking the event loop stalls all slots; use `execFile` from `child_process/promises`.
+- **activity history**: If the run-loop already prepends activity history before dispatch, dispatchers must NOT also prepend it — causes double injection.
+- **truncation**: Truncate history with `slice(-MAX)` (keep newest), not `slice(0, MAX)` (keep oldest) — stale context is worse than none.
+- **shutdown**: `stopAll()` must `await Promise.allSettled(inFlight)` before iterating containers — concurrent launches during shutdown orphan processes.
