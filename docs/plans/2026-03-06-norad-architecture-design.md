@@ -158,15 +158,21 @@ One config file, owned by RADAR. RADAR splits it: flow definitions go to DEFCON 
 
 ```json
 {
-  "flows": {
-    "engineering": {
+  "flows": [
+    {
+      "name": "engineering",
       "discipline": "engineering",
-      "states": {
-        "architecting": { "onEnter": ["..."], "transitions": { "arch_approved": "coding" } },
-        "coding": { "..." : "..." }
-      }
+      "initialState": "backlog",
+      "states": [
+        { "name": "backlog", "mode": "passive" },
+        { "name": "architecting", "modelTier": "opus", "mode": "active", "promptTemplate": "..." },
+        { "name": "coding", "modelTier": "sonnet", "mode": "active", "promptTemplate": "..." }
+      ],
+      "transitions": [
+        { "fromState": "architecting", "toState": "coding", "trigger": "spec_ready" }
+      ]
     }
-  },
+  ],
   "sources": {
     "linear-prod": {
       "type": "webhook",
