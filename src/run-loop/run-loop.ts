@@ -179,6 +179,9 @@ export class RunLoop {
       const rawModelTier = (claimAny.model_tier as string | undefined) ?? "sonnet";
       const modelTier: "opus" | "sonnet" | "haiku" =
         rawModelTier === "opus" || rawModelTier === "haiku" ? rawModelTier : "sonnet";
+      // agentRole is fixed for the lifetime of this claim. On `continue` responses the
+      // new prompt is applied but the agent role stays the same — the next stage's
+      // invocation will be claimed fresh with its own agentRole set by defcon.
       const agentRole = (claimAny.agent_role as string | null | undefined) ?? null;
       const originalPrompt = claim.prompt;
       let currentPrompt = claim.prompt;
