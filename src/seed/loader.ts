@@ -107,6 +107,7 @@ export async function loadSeed(seedPath: string, deps: LoadSeedDeps): Promise<Lo
           discipline: flow.discipline,
           maxConcurrent: flow.maxConcurrent,
           maxConcurrentPerRepo: flow.maxConcurrentPerRepo,
+          claimRetryAfterMs: flow.claimRetryAfterMs,
           states: flow.states.map((s) => ({
             name: s.name,
             modelTier: s.modelTier,
