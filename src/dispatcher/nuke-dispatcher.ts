@@ -287,6 +287,7 @@ export class NukeDispatcher implements Dispatcher {
             signal = "crash";
             artifacts = { error: event.message };
             exitCode = -1;
+            reader.cancel().catch(() => {});
             break readLoop;
           }
         }
