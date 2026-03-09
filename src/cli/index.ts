@@ -328,63 +328,7 @@ export function buildProgram(): Command {
         },
       };
 
-      const workerRepo = {
-        findAll: async () =>
-          dbWorkerRepo.list().map((r) => ({
-            id: r.id,
-            name: r.name,
-            type: r.type,
-            discipline: r.discipline,
-            status: r.status,
-            config: r.config,
-            last_heartbeat: r.lastHeartbeat,
-            created_at: r.createdAt,
-          })),
-        findById: async (id: string) => {
-          const r = dbWorkerRepo.getById(id);
-          return r
-            ? {
-                id: r.id,
-                name: r.name,
-                type: r.type,
-                discipline: r.discipline,
-                status: r.status,
-                config: r.config,
-                last_heartbeat: r.lastHeartbeat,
-                created_at: r.createdAt,
-              }
-            : undefined;
-        },
-        create: async (data: {
-          name: string;
-          type: string;
-          discipline: string;
-          status?: string;
-          config?: Record<string, unknown> | null;
-          last_heartbeat: number;
-        }) => {
-          const r = dbWorkerRepo.register({
-            name: data.name,
-            type: data.type,
-            discipline: data.discipline,
-            config: data.config ?? undefined,
-          });
-          return {
-            id: r.id,
-            name: r.name,
-            type: r.type,
-            discipline: r.discipline,
-            status: r.status,
-            config: r.config,
-            last_heartbeat: r.lastHeartbeat,
-            created_at: r.createdAt,
-          };
-        },
-        delete: async (id: string) => {
-          dbWorkerRepo.deregister(id);
-          return true;
-        },
-      };
+      const workerRepo = dbWorkerRepo;
 
       const eventLogRepo = {
         findAll: async (findAllOpts?: { limit?: number; offset?: number }) => {
@@ -451,6 +395,9 @@ export function buildProgram(): Command {
         defcon,
         dispatcher,
         activityRepo,
+        workerRepo,
+        workerType: opts.worker ?? "wopr",
+        workerDiscipline: opts.role,
         role: opts.role,
         flow: opts.flow,
         workerIdPrefix: opts.worker,

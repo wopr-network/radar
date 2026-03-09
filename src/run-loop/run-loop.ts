@@ -35,6 +35,7 @@ export class RunLoop {
   private abortController: AbortController | null = null;
   private slotPromises: Map<string, Promise<void>> = new Map();
   private pendingClaims = 0;
+  private registeredWorkerId: string | null = null;
 
   constructor(config: RunLoopConfig) {
     this.config = config;
@@ -44,13 +45,26 @@ export class RunLoop {
   start(): void {
     if (this.abortController) throw new Error("RunLoop already started");
     this.abortController = new AbortController();
-    const { pool } = this.config;
+    const { pool, workerRepo } = this.config;
+
+    // Register worker in DB if repo provided
+    let workerIdForSlots = `${this.config.workerIdPrefix ?? "wkr"}-${randomUUID().slice(0, 8)}`;
+    if (workerRepo) {
+      const hostname = globalThis.process?.env?.HOSTNAME ?? "unknown";
+      const pid = globalThis.process?.pid ?? 0;
+      const worker = workerRepo.register({
+        name: `${this.config.workerIdPrefix ?? "wkr"}-${hostname}-${pid}`,
+        type: this.config.workerType ?? "unknown",
+        discipline: this.config.workerDiscipline ?? this.config.role,
+      });
+      this.registeredWorkerId = worker.id;
+      workerIdForSlots = worker.id;
+    }
 
     const capacity = pool.availableSlots();
     for (let i = 0; i < capacity; i++) {
       const slotId = `slot-${i}`;
-      const workerId = `${this.config.workerIdPrefix ?? "wkr"}-${randomUUID().slice(0, 8)}`;
-      const promise = this.runSlot(slotId, workerId);
+      const promise = this.runSlot(slotId, workerIdForSlots);
       this.slotPromises.set(slotId, promise);
     }
   }
@@ -79,6 +93,16 @@ export class RunLoop {
     }
     // Force-timeout path: slots are still running but aborted; null controller now
     // so this.signal getter returns a pre-aborted signal for any in-flight code.
+
+    // Deregister worker from DB
+    if (this.registeredWorkerId && this.config.workerRepo) {
+      try {
+        this.config.workerRepo.deregister(this.registeredWorkerId);
+      } catch {
+        // Best-effort deregister — ungraceful shutdown handled by WOP-1874 reaper
+      }
+      this.registeredWorkerId = null;
+    }
 
     this.slotPromises.clear();
     this.abortController = null;
@@ -128,6 +152,15 @@ export class RunLoop {
       claim = await defcon.claim({ workerId, role, flow }, { signal: this.signal });
     } finally {
       this.pendingClaims--;
+    }
+
+    // Heartbeat the worker on each claim cycle
+    if (this.registeredWorkerId && this.config.workerRepo) {
+      try {
+        this.config.workerRepo.heartbeat(this.registeredWorkerId);
+      } catch {
+        // Non-fatal — heartbeat failure shouldn't crash the slot
+      }
     }
 
     if (!isWorkClaim(claim)) {

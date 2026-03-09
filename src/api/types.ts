@@ -1,8 +1,11 @@
 import type { IEntityActivityRepo } from "../db/repos/i-entity-activity-repo.js";
+import type { RegisterWorkerInput, WorkerRepo, WorkerRow } from "../db/repos/worker-repo.js";
 import type { DefconClient } from "../defcon/index.js";
 import type { IngestEvent } from "../ingestion/types.js";
 import type { Pool } from "../pool/index.js";
 import type { SourceAdapterRegistry } from "../sources/adapter.js";
+
+export type { WorkerRepo, WorkerRow, RegisterWorkerInput };
 
 export interface RouteParams {
   [key: string]: string;
@@ -63,13 +66,6 @@ export interface EventLogRepo {
   append(data: Omit<EventLogEntry, "id" | "created_at">): Promise<EventLogEntry>;
 }
 
-export interface WorkerRepo {
-  findAll(): Promise<Worker[]>;
-  findById(id: string): Promise<Worker | undefined>;
-  create(data: Omit<Worker, "id" | "created_at">): Promise<Worker>;
-  delete(id: string): Promise<boolean>;
-}
-
 export interface Source {
   id: string;
   name: string;
@@ -99,16 +95,5 @@ export interface EventLogEntry {
   raw_event: unknown;
   action_taken: string | null;
   defcon_response: unknown;
-  created_at: number;
-}
-
-export interface Worker {
-  id: string;
-  name: string;
-  type: string;
-  discipline: string;
-  status: string;
-  config: Record<string, unknown> | null;
-  last_heartbeat: number;
   created_at: number;
 }
