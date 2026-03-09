@@ -229,8 +229,9 @@ export function buildProgram(): Command {
       const { GenericSourceAdapter } = await import("../sources/generic-adapter.js");
 
       const { ThroughputTracker } = await import("../pool/throughput-tracker.js");
+      const { DrizzleThroughputRepo } = await import("../db/repos/drizzle-throughput-repo.js");
       const pool = new Pool(opts.workers);
-      const throughputTracker = new ThroughputTracker();
+      const throughputTracker = new ThroughputTracker(new DrizzleThroughputRepo(radarDb));
       const defcon = new DefconClient({ url: opts.defconUrl, workerToken: opts.workerToken });
       const ingestor = new Ingestor(entityMapRepo, defcon);
       const activityRepo = new DrizzleEntityActivityRepo(radarDb);

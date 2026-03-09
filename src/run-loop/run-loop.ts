@@ -329,10 +329,15 @@ export class RunLoop {
         // "waiting" — release slot
         if (this.config.throughputTracker) {
           const durationMs = Date.now() - startTime;
-          const outcome = currentSignal === "crash" ? "failed" : "completed";
+          const outcome = currentSignal === "crash" || currentSignal === undefined ? "failed" : "completed";
           this.config.throughputTracker.record(outcome, durationMs);
         }
         break;
+      }
+
+      // Aborted mid-flight — record as failed so throughput stats account for it
+      if (this.signal.aborted && this.config.throughputTracker) {
+        this.config.throughputTracker.record("failed", Date.now() - startTime);
       }
     } finally {
       try {

@@ -1,13 +1,19 @@
 import { describe, expect, it } from "vitest";
+import { createDb } from "../../db/index.js";
+import { DrizzleThroughputRepo } from "../../db/repos/drizzle-throughput-repo.js";
 import { Pool } from "../../pool/pool.js";
 import { ThroughputTracker } from "../../pool/throughput-tracker.js";
 import { Router } from "../router.js";
 import { registerPoolRoutes } from "./pool.js";
 
+function makeTracker(): ThroughputTracker {
+  return new ThroughputTracker(new DrizzleThroughputRepo(createDb(":memory:")));
+}
+
 describe("GET /api/pool/status", () => {
   it("returns pool status with empty pool", async () => {
     const pool = new Pool(4);
-    const tracker = new ThroughputTracker();
+    const tracker = makeTracker();
     const router = new Router();
     registerPoolRoutes(router, pool, async () => ({}), tracker);
 
@@ -31,7 +37,7 @@ describe("GET /api/pool/status", () => {
     const pool = new Pool(4);
     pool.allocate("slot-0", "wkr-1", "engineering", "entity-abc", "do stuff");
     pool.setState("slot-0", "working");
-    const tracker = new ThroughputTracker();
+    const tracker = makeTracker();
     tracker.record("completed", 1200);
     const router = new Router();
     registerPoolRoutes(router, pool, async () => ({}), tracker);
