@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { ClaimHandler } from "../src/claim/claim-handler.js";
 import { InMemoryWorkerRepo } from "../src/worker/worker-repo.js";
 import type { DefconClient } from "../src/defcon/client.js";
-import type { ClaimResponse } from "../src/defcon/types.js";
+import type { ClaimResponse } from "@wopr-network/defcon";
 
 function mockDefconClient(response: ClaimResponse): DefconClient {
   return {
@@ -15,9 +15,9 @@ const workAssignment: ClaimResponse = {
   entity_id: "feat-99",
   invocation_id: "inv-1",
   flow: "engineering",
-  stage: "implement",
-  prompt: "Fix the bug",
-  context: null,
+  state: "implement",
+  refs: {},
+  artifacts: {},
 };
 
 const checkBack: ClaimResponse = {

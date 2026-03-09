@@ -1,9 +1,26 @@
 import { describe, expect, it, vi } from "vitest";
 import type { DefconClient } from "../../src/defcon/client.js";
-import type { ClaimResponse, ReportResponse } from "../../src/defcon/types.js";
+import type { ClaimResponse, ReportResponse } from "@wopr-network/defcon";
 import type { Dispatcher, DispatchOpts, WorkerResult } from "../../src/dispatcher/types.js";
+import { FlowCache } from "../../src/flow-cache/index.js";
 import { Pool } from "../../src/pool/pool.js";
 import { RunLoop } from "../../src/run-loop/run-loop.js";
+
+function makeFlowCache(): FlowCache {
+  const cache = new FlowCache();
+  cache.load([
+    {
+      name: "wopr-changeset",
+      initialState: "spec",
+      discipline: "engineering",
+      states: [
+        { name: "spec", promptTemplate: "**Repo:** {{repo}}\nDo something", modelTier: "sonnet" },
+      ],
+      transitions: [{ fromState: "spec", toState: "done", trigger: "done" }],
+    },
+  ]);
+  return cache;
+}
 
 function createMockDefcon(overrides?: {
   claim?: () => Promise<ClaimResponse>;
@@ -44,6 +61,7 @@ describe("RunLoop concurrency enforcement", () => {
       pool,
       defcon,
       dispatcher: createEchoDispatcher(),
+      flowCache: makeFlowCache(),
       role: "engineering",
       flow: "wopr-changeset",
       maxConcurrent: 2,
@@ -74,6 +92,7 @@ describe("RunLoop concurrency enforcement", () => {
       pool,
       defcon,
       dispatcher: createEchoDispatcher(),
+      flowCache: makeFlowCache(),
       role: "engineering",
       flow: "wopr-changeset",
       maxConcurrent: 4,
@@ -92,31 +111,28 @@ describe("RunLoop concurrency enforcement", () => {
     pool.allocate("pre-1", "w1", "engineering", "e1", "p1", "wopr-changeset", "wopr-network/wopr");
     pool.allocate("pre-2", "w2", "engineering", "e2", "p2", "wopr-changeset", "wopr-network/wopr");
 
-    let reportCallCount = 0;
     const defcon = createMockDefcon({
       claim: vi.fn(async () => ({
-        
         entity_id: "e3",
         invocation_id: "inv3",
         flow: "wopr-changeset",
-        stage: "spec",
-        prompt: "**Repo:** wopr-network/wopr\nDo something",
+        state: "spec",
+        refs: { repo: "wopr-network/wopr" },
+        artifacts: {},
       })),
-      report: vi.fn(async () => {
-        reportCallCount++;
-        return {
-          next_action: "waiting" as const,
-          gated: true as const,
-          gateName: "done",
-          gate_output: "",
-        };
-      }),
+      report: vi.fn(async () => ({
+        next_action: "waiting" as const,
+        gated: true as const,
+        gateName: "done",
+        gate_output: "",
+      })),
     });
 
     const loop = new RunLoop({
       pool,
       defcon,
       dispatcher: createEchoDispatcher(),
+      flowCache: makeFlowCache(),
       role: "engineering",
       flow: "wopr-changeset",
       maxConcurrentPerRepo: 2,
@@ -138,7 +154,6 @@ describe("RunLoop concurrency enforcement", () => {
 
   it("does not enforce maxConcurrent when flow is undefined", async () => {
     const pool = new Pool(4);
-    // Even with slots pre-filled with no flowName, maxConcurrent should not block
     pool.allocate("pre-1", "w1", "engineering", "e1", "p1");
     pool.allocate("pre-2", "w2", "engineering", "e2", "p2");
 
@@ -154,8 +169,8 @@ describe("RunLoop concurrency enforcement", () => {
       pool,
       defcon,
       dispatcher: createEchoDispatcher(),
+      flowCache: makeFlowCache(),
       role: "engineering",
-      // no flow set
       maxConcurrent: 2,
       pollIntervalMs: 50,
     });
@@ -164,7 +179,6 @@ describe("RunLoop concurrency enforcement", () => {
     await new Promise((r) => setTimeout(r, 200));
     await loop.stop();
 
-    // claim IS called — no flow means no enforcement
     expect(claimed).toBe(true);
   });
 });

@@ -2,6 +2,7 @@ import type { IWorkerRepo } from "../api/types.js";
 import type { IEntityActivityRepo } from "../db/repos/i-entity-activity-repo.js";
 import type { DefconClient } from "../defcon/client.js";
 import type { INukeDispatcher as Dispatcher } from "../dispatcher/types.js";
+import type { FlowCache } from "../flow-cache/index.js";
 import type { Pool } from "../pool/pool.js";
 import type { ThroughputTracker } from "../pool/throughput-tracker.js";
 
@@ -23,6 +24,7 @@ export interface RunLoopConfig {
   /** Single-discipline shorthand — equivalent to `roles: [{ discipline, count: pool.size }]`. */
   role?: string;
   flow?: string;
+  flowCache: FlowCache;
   pollIntervalMs?: number;
   workerIdPrefix?: string;
   maxConcurrent?: number;

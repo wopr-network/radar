@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { IWorkerRepo, WorkerRow } from "../api/types.js";
 import type { Dispatcher } from "../dispatcher/types.js";
+import { FlowCache } from "../flow-cache/index.js";
 import { Pool } from "../pool/pool.js";
 import { RunLoop } from "./run-loop.js";
 import type { RunLoopConfig } from "./types.js";
@@ -53,6 +54,7 @@ function makeConfig(overrides: Partial<RunLoopConfig> = {}): RunLoopConfig {
     pool: new Pool(1),
     defcon: makeDefcon([{ retry_after_ms: 50 }]),
     dispatcher: makeDispatcher(),
+    flowCache: new FlowCache(),
     roles: [{ discipline: "engineering", count: 1 }],
     pollIntervalMs: 5,
     ...overrides,

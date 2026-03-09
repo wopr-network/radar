@@ -148,6 +148,9 @@ export function buildProgram(): Command {
       const dbWorkerRepo = new DbWorkerRepo(radarDb);
       const dbEventLogRepo = new DbEventLogRepo(radarDb);
 
+      const { FlowCache } = await import("../flow-cache/index.js");
+      const flowCache = new FlowCache();
+
       if (opts.seed) {
         const { createDb } = await import("../db/index.js");
         const { loadSeed, expandEnvVarsInValue } = await import("../seed/loader.js");
@@ -208,6 +211,8 @@ export function buildProgram(): Command {
               })
               .run();
           }
+          // Populate flow cache from seed for local dispatch config lookup
+          flowCache.load(seed.flows);
         } catch (err) {
           logger.error(`[radar] Failed to populate API DB from seed`, {
             error: err instanceof Error ? err.message : String(err),
@@ -477,6 +482,7 @@ export function buildProgram(): Command {
         workerDiscipline: (opts.roles as Array<{ discipline: string; count: number }>)[0]?.discipline,
         roles: opts.roles as Array<{ discipline: string; count: number }>,
         flow: opts.flow,
+        flowCache,
         workerIdPrefix: opts.worker,
         pollIntervalMs: 5000,
         maxConcurrent: opts.maxConcurrent,
