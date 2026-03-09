@@ -11,3 +11,6 @@ npm run check
 - **worker/register**: Reset abortController to null in the catch block on register failure — stale controller prevents re-registration.
 - **cli/roles**: Reject multiple bare `--role` flags — each bare role spawns a slot, so duplicates silently over-provision concurrency.
 - **cli/roles**: Validate `role:concurrency` args have exactly one colon — extra segments must be an error, not silently ignored.
+- **outcome**: Map all non-success signals to "failed" — not just "crash"; unrecognized signals must never silently count as "completed".
+- **shutdown**: Count aborted entities in throughput stats as "failed" — dropping them hides real workload from metrics.
+- **throughput**: Back ThroughputTracker with DrizzleThroughputRepo/SQLite — ephemeral in-memory arrays violate the DB-backed convention.
