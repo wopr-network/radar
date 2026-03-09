@@ -46,8 +46,10 @@ export class NukeDispatcher implements INukeDispatcher {
       });
     }
 
-    // Shared controller so we can distinguish timeout aborts from other errors
+    // Arm timeout immediately — covers container launch + SSE streaming
     const controller = new AbortController();
+    const timeoutMs = opts.timeout ?? 30 * 60 * 1000;
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
     let container: Awaited<ReturnType<ContainerLauncher["launch"]>> | undefined;
 
     try {
@@ -57,8 +59,7 @@ export class NukeDispatcher implements INukeDispatcher {
         baseUrl: container.baseUrl,
         prompt,
         modelTier,
-        timeoutMs: opts.timeout,
-        abortController: controller,
+        abortController: controller, // no separate timeoutMs — parent timer covers it
       });
 
       return await processEvents(emitter, entityId, slotId, this.activityRepo);
@@ -73,6 +74,7 @@ export class NukeDispatcher implements INukeDispatcher {
         exitCode: -1,
       };
     } finally {
+      clearTimeout(timer);
       if (container) {
         await container.teardown();
       }

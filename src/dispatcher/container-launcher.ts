@@ -45,15 +45,21 @@ export class ContainerLauncher {
       );
     }
 
-    const container = await this.docker.createContainer({
-      Image: image,
-      ExposedPorts: { "8080/tcp": {} },
-      HostConfig: {
-        PortBindings: { "8080/tcp": [{ HostIp: "127.0.0.1", HostPort: "" }] }, // ephemeral port
-        Binds: [`${launchSecretsDir}:/run/secrets:ro`],
-        AutoRemove: false, // we remove manually after teardown logging
-      },
-    });
+    let container: Docker.Container;
+    try {
+      container = await this.docker.createContainer({
+        Image: image,
+        ExposedPorts: { "8080/tcp": {} },
+        HostConfig: {
+          PortBindings: { "8080/tcp": [{ HostIp: "127.0.0.1", HostPort: "" }] }, // ephemeral port
+          Binds: [`${launchSecretsDir}:/run/secrets:ro`],
+          AutoRemove: false, // we remove manually after teardown logging
+        },
+      });
+    } catch (err) {
+      await rm(launchSecretsDir, { recursive: true, force: true }).catch(() => undefined);
+      throw err;
+    }
 
     try {
       await container.start();
