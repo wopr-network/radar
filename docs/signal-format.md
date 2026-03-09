@@ -10,6 +10,12 @@ When claude finishes processing an entity, RADAR reads the last 200 lines of cla
 
 **There is no structured output required.** Claude writes normal prose. The signal parser looks for specific phrases anywhere in the output. Everything else is ignored.
 
+### Signals as Prompt Engineering
+
+This design is a prompt engineering pattern. The agent writes prose — reasoning, analysis, context, findings — for human readability in logs and activity history. The signal phrase is a machine-extractable marker embedded in that prose. The prose is for humans. The signal is for gates.
+
+This means the agent's entire stdout is context. When an entity re-enters a state (the review/fix loop), RADAR can prepend the prior attempt's output to the next prompt. The agent's prose becomes the specification for the next correction attempt. The signal is the structured trigger. The rest is the evidence.
+
 ---
 
 ## Signal Phrases
@@ -167,7 +173,7 @@ If claude exits 0 but no signal is found, RADAR also reports `crash`. **Always e
 
 ## Prompt Templates
 
-Each state's `promptTemplate` in `seed/flows.json` specifies what signal the agent should send at the end. The templates use this exact wording — match it literally.
+Each state's `promptTemplate` in `seeds/wopr.seed.json` specifies what signal the agent should send at the end. The templates use this exact wording — match it literally.
 
 Example from the architecting state:
 
