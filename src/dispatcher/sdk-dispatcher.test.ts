@@ -166,4 +166,58 @@ describe("SdkDispatcher", () => {
       expect.objectContaining({ options: expect.objectContaining({ model: "claude-opus-4-6" }) }),
     );
   });
+
+  it("prepends activity history to prompt when prior activity exists", async () => {
+    const repo = makeRepo();
+    vi.mocked(repo.getSummary).mockResolvedValue('Prior work on this entity:\n\nAttempt 1:\n  - Said: "done"');
+    mockQuery.mockReturnValue(
+      makeStream([
+        { type: "result", subtype: "success", is_error: false, total_cost_usd: 0, stop_reason: "end_turn" },
+      ]) as ReturnType<typeof query>,
+    );
+
+    const dispatcher = new SdkDispatcher(repo);
+    await dispatcher.dispatch("new task", { entityId: "e1", workerId: "slot-2", modelTier: "haiku" });
+
+    expect(repo.getSummary).toHaveBeenCalledWith("e1");
+    const promptArg = mockQuery.mock.lastCall?.[0] as { prompt: string } | undefined;
+    expect(promptArg?.prompt).toContain("Prior work on this entity:");
+    expect(promptArg?.prompt).toContain("new task");
+  });
+
+  it("does not prepend history when getSummary returns empty string", async () => {
+    const repo = makeRepo();
+    vi.mocked(repo.getSummary).mockResolvedValue("");
+    mockQuery.mockReturnValue(
+      makeStream([
+        { type: "result", subtype: "success", is_error: false, total_cost_usd: 0, stop_reason: "end_turn" },
+      ]) as ReturnType<typeof query>,
+    );
+
+    const dispatcher = new SdkDispatcher(repo);
+    await dispatcher.dispatch("first task", { entityId: "e1", workerId: "slot-1", modelTier: "haiku" });
+
+    const promptArg = mockQuery.mock.lastCall?.[0] as { prompt: string } | undefined;
+    expect(promptArg?.prompt).toBe("first task");
+  });
+
+  it("truncates history to HISTORY_CHAR_CAP characters", async () => {
+    const repo = makeRepo();
+    const longHistory = "x".repeat(5000);
+    vi.mocked(repo.getSummary).mockResolvedValue(longHistory);
+    mockQuery.mockReturnValue(
+      makeStream([
+        { type: "result", subtype: "success", is_error: false, total_cost_usd: 0, stop_reason: "end_turn" },
+      ]) as ReturnType<typeof query>,
+    );
+
+    const dispatcher = new SdkDispatcher(repo);
+    await dispatcher.dispatch("task", { entityId: "e1", workerId: "slot-1", modelTier: "haiku" });
+
+    const promptArg = mockQuery.mock.lastCall?.[0] as { prompt: string } | undefined;
+    expect(promptArg?.prompt).toContain("[history truncated]");
+    // The injected history portion should not exceed cap + truncation marker
+    const historyPart = promptArg?.prompt?.split("\n\n---\n\n")[0] ?? "";
+    expect(historyPart.length).toBeLessThan(5000);
+  });
 });
