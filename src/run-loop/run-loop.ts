@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { ClaimResponse, ReportResponse } from "@wopr-network/defcon";
+import { logger } from "../logger.js";
 import { extractRepoFromDescription } from "../sources/linear/repo-extractor.js";
 import { safeErrorMessage } from "../sources/sanitize.js";
 import type { RunLoopConfig } from "./types.js";
@@ -100,7 +101,7 @@ export class RunLoop {
         await this.claimAndProcess(slotId, workerId);
       } catch (err) {
         if (!this.signal.aborted) {
-          console.error(`[radar] slot ${slotId} claim error:`, safeErrorMessage(err));
+          logger.error(`[radar] slot ${slotId} claim error`, { error: safeErrorMessage(err) });
           await sleep(this.pollIntervalMs, this.signal);
         }
       }
@@ -130,14 +131,16 @@ export class RunLoop {
     }
 
     if (!isWorkClaim(claim)) {
-      console.log(`[radar] slot ${slotId} no work, check_back in ${claim.retry_after_ms}ms`);
+      logger.info(`[radar] slot ${slotId} no work`, { check_back_ms: claim.retry_after_ms });
       await sleep(claim.retry_after_ms, this.signal);
       return;
     }
 
-    console.log(
-      `[radar] slot ${slotId} claimed entity ${claim.entity_id} flow=${claim.flow ?? "none"} stage=${(claim as Record<string, unknown>).stage ?? "?"}`,
-    );
+    logger.info(`[radar] slot ${slotId} claimed entity`, {
+      entity: claim.entity_id,
+      flow: claim.flow ?? "none",
+      stage: (claim as Record<string, unknown>).stage ?? "?",
+    });
 
     const claimFlow = claim.flow;
     const claimRepo = extractRepoFromDescription(claim.prompt);
@@ -154,7 +157,7 @@ export class RunLoop {
             artifacts: { error: `per-repo concurrency limit reached for ${claimRepo}` },
           });
         } catch (err) {
-          console.error("[run-loop] crash report failed:", safeErrorMessage(err));
+          logger.error("[run-loop] crash report failed", { error: safeErrorMessage(err) });
         }
         await sleep(this.pollIntervalMs, this.signal);
         return;
@@ -194,9 +197,11 @@ export class RunLoop {
           const heartbeatInterval = setInterval(() => {
             pool.heartbeat(slotId);
           }, this.pollIntervalMs);
-          console.log(
-            `[radar] slot ${slotId} dispatching entity ${claim.entity_id} model=${modelTier} agentRole=${agentRole ?? "none"}`,
-          );
+          logger.info(`[radar] slot ${slotId} dispatching entity`, {
+            entity: claim.entity_id,
+            model: modelTier,
+            agentRole: agentRole ?? "none",
+          });
           try {
             const result = await dispatcher.dispatch(currentPrompt, {
               modelTier,
@@ -204,11 +209,14 @@ export class RunLoop {
               entityId: claim.entity_id,
               agentRole,
             });
-            console.log(`[radar] slot ${slotId} dispatch done signal=${result.signal} exitCode=${result.exitCode}`);
+            logger.info(`[radar] slot ${slotId} dispatch done`, {
+              signal: result.signal,
+              exitCode: result.exitCode,
+            });
             currentSignal = result.signal;
             currentArtifacts = result.artifacts;
           } catch (err) {
-            console.error(`[radar] slot ${slotId} dispatch threw:`, safeErrorMessage(err));
+            logger.error(`[radar] slot ${slotId} dispatch threw`, { error: safeErrorMessage(err) });
             currentSignal = "crash";
             currentArtifacts = { error: safeErrorMessage(err) };
           } finally {
@@ -226,14 +234,14 @@ export class RunLoop {
           });
         } catch (err) {
           if (!this.signal.aborted) {
-            console.error(`[radar] slot ${slotId} report error:`, safeErrorMessage(err));
+            logger.error(`[radar] slot ${slotId} report error`, { error: safeErrorMessage(err) });
             await sleep(this.pollIntervalMs, this.signal);
             continue;
           }
           break;
         }
 
-        console.log(`[radar] slot ${slotId} report ack next_action=${response.next_action}`);
+        logger.info(`[radar] slot ${slotId} report ack`, { next_action: response.next_action });
 
         if (response.next_action === "continue") {
           let history = "";
@@ -241,10 +249,9 @@ export class RunLoop {
             try {
               history = this.config.activityRepo.getSummary(claim.entity_id);
             } catch (err) {
-              console.warn(
-                `[radar] slot ${slotId} getSummary failed, continuing without history:`,
-                safeErrorMessage(err),
-              );
+              logger.warn(`[radar] slot ${slotId} getSummary failed, continuing without history`, {
+                error: safeErrorMessage(err),
+              });
             }
           }
           const basePrompt = response.prompt ?? originalPrompt;

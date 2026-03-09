@@ -3,6 +3,7 @@ import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import { query } from "@anthropic-ai/claude-agent-sdk";
 import type { IEntityActivityRepo } from "../db/repos/entity-activity-repo.js";
+import { logger } from "../logger.js";
 import { parseSignal } from "./parse-signal.js";
 import type { Dispatcher, DispatchOpts, WorkerResult } from "./types.js";
 
@@ -23,30 +24,31 @@ async function safeInsert(
   try {
     await repo.insert(input);
   } catch (dbErr) {
-    console.error(`[claude] [${tag}] activity insert error`, dbErr instanceof Error ? dbErr.message : String(dbErr));
+    logger.error(`[claude] [${tag}] activity insert error`, {
+      error: dbErr instanceof Error ? dbErr.message : String(dbErr),
+    });
   }
 }
 
 function loadAgentMd(agentsDir: string, agentRole: string): string | null {
   // Reject roles containing path separators or dots to prevent path traversal.
   if (!/^[\w-]+$/.test(agentRole)) {
-    console.warn(`[claude] agentRole "${agentRole}" contains invalid characters — skipping MD load`);
+    logger.warn(`[claude] agentRole "${agentRole}" contains invalid characters — skipping MD load`);
     return null;
   }
   const resolvedDir = resolve(agentsDir);
   const resolvedFile = resolve(join(resolvedDir, `${agentRole}.md`));
   if (!resolvedFile.startsWith(`${resolvedDir}/`) && resolvedFile !== resolvedDir) {
-    console.warn(`[claude] agentRole path "${resolvedFile}" escapes agentsDir — skipping MD load`);
+    logger.warn(`[claude] agentRole path "${resolvedFile}" escapes agentsDir — skipping MD load`);
     return null;
   }
   try {
     return readFileSync(resolvedFile, "utf-8");
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code !== "ENOENT") {
-      console.warn(
-        `[claude] failed to load agent MD "${resolvedFile}":`,
-        err instanceof Error ? err.message : String(err),
-      );
+      logger.warn(`[claude] failed to load agent MD "${resolvedFile}"`, {
+        error: err instanceof Error ? err.message : String(err),
+      });
     }
     return null;
   }
@@ -74,9 +76,11 @@ export class SdkDispatcher implements Dispatcher {
       const agentMd = agentRole ? loadAgentMd(this.agentsDir, agentRole) : null;
       const fullPrompt = agentMd ? `${agentMd}\n\n---\n\n${prompt}` : prompt;
 
-      console.log(
-        `[claude] [${slotId}] START entity=${entityId} model=${MODEL_MAP[modelTier]}${agentRole ? ` agentRole=${agentRole}` : ""}`,
-      );
+      logger.info(`[claude] [${slotId}] START`, {
+        entity: entityId,
+        model: MODEL_MAP[modelTier],
+        ...(agentRole ? { agentRole } : {}),
+      });
       await safeInsert(this.activityRepo, { entityId, slotId, type: "start", data: {} }, slotId);
 
       // Strip CLAUDECODE env var so the claude subprocess doesn't refuse to start
@@ -120,11 +124,14 @@ export class SdkDispatcher implements Dispatcher {
         },
       })) {
         if (message.type === "system") {
-          console.log(`[claude] [${slotId}] system subtype=${message.subtype}`);
+          logger.info(`[claude] [${slotId}] system`, { subtype: message.subtype });
         } else if (message.type === "assistant") {
           for (const block of message.message.content) {
             if (block.type === "tool_use") {
-              console.log(`[claude] [${slotId}] tool_use ${block.name} ${JSON.stringify(block.input).slice(0, 120)}`);
+              logger.info(`[claude] [${slotId}] tool_use`, {
+                tool: block.name,
+                input: JSON.stringify(block.input).slice(0, 120),
+              });
               await safeInsert(
                 this.activityRepo,
                 { entityId, slotId, type: "tool_use", data: { name: block.name, input: block.input } },
@@ -132,7 +139,9 @@ export class SdkDispatcher implements Dispatcher {
               );
             } else if (block.type === "text" && block.text) {
               allTextBlocks.push(block.text);
-              console.log(`[claude] [${slotId}] text "${block.text.slice(0, 200).replace(/\n/g, " ")}"`);
+              logger.info(`[claude] [${slotId}] text`, {
+                preview: block.text.slice(0, 200).replace(/\n/g, " "),
+              });
               await safeInsert(
                 this.activityRepo,
                 { entityId, slotId, type: "text", data: { text: block.text } },
@@ -143,9 +152,12 @@ export class SdkDispatcher implements Dispatcher {
         } else if (message.type === "result") {
           const costUsd = message.total_cost_usd;
           const subtype = message.subtype;
-          console.log(
-            `[claude] [${slotId}] RESULT subtype=${subtype} is_error=${message.is_error} stop_reason=${message.stop_reason} cost=$${costUsd?.toFixed(4) ?? "?"}`,
-          );
+          logger.info(`[claude] [${slotId}] RESULT`, {
+            subtype,
+            is_error: message.is_error,
+            stop_reason: message.stop_reason,
+            cost_usd: costUsd?.toFixed(4) ?? "?",
+          });
           await safeInsert(
             this.activityRepo,
             {
@@ -162,26 +174,26 @@ export class SdkDispatcher implements Dispatcher {
           }
 
           const { signal, artifacts } = parseSignal(allTextBlocks.join("\n"));
-          console.log(`[claude] [${slotId}] parsed signal=${signal}`);
+          logger.info(`[claude] [${slotId}] parsed signal`, { signal });
           return {
             signal,
             artifacts,
             exitCode: 0,
           };
         } else {
-          console.log(`[claude] [${slotId}] msg type=${(message as { type: string }).type}`);
+          logger.info(`[claude] [${slotId}] msg`, { type: (message as { type: string }).type });
         }
       }
 
-      console.log(`[claude] [${slotId}] stream ended without result`);
+      logger.warn(`[claude] [${slotId}] stream ended without result`);
       // Stream ended without a result message
       return { signal: "crash", artifacts: {}, exitCode: -1 };
     } catch (err) {
       if (controller.signal.aborted) {
-        console.log(`[claude] [${slotId}] TIMEOUT`);
+        logger.warn(`[claude] [${slotId}] TIMEOUT`);
         return { signal: "timeout", artifacts: {}, exitCode: -1 };
       }
-      console.error(`[claude] [${slotId}] ERROR`, err instanceof Error ? err.message : String(err));
+      logger.error(`[claude] [${slotId}] ERROR`, { error: err instanceof Error ? err.message : String(err) });
       return {
         signal: "crash",
         artifacts: { error: err instanceof Error ? err.message : String(err) },

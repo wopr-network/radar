@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import type { RadarDb } from "../db/index.js";
+import { logger } from "../logger.js";
 import { SeedFileSchema } from "./types.js";
 
 export interface LoadSeedDeps {
@@ -88,9 +89,8 @@ export async function loadSeed(seedPath: string, deps: LoadSeedDeps): Promise<Lo
 
   for (const flow of seed.flows) {
     if (!flow.discipline) {
-      console.warn(
-        `[radar] WARNING: flow "${flow.name}" has no discipline — workers will not claim its entities. ` +
-          `Add "discipline": "<role>" to the flow definition.`,
+      logger.warn(
+        `[radar] WARNING: flow "${flow.name}" has no discipline — workers will not claim its entities. Add "discipline": "<role>" to the flow definition.`,
       );
     }
     // PUT /api/flows/:id is idempotent — creates the flow if absent, updates it if already present.

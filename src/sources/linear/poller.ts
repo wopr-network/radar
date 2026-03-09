@@ -1,4 +1,5 @@
 import type { Ingestor } from "../../ingestion/ingestor.js";
+import { logger } from "../../logger.js";
 import { safeErrorMessage } from "../sanitize.js";
 import type { LinearClient } from "./client.js";
 import { extractRepoFromDescription } from "./repo-extractor.js";
@@ -40,7 +41,7 @@ export class LinearPoller {
     this.timer = setInterval(() => {
       if (this.isPolling) return;
       this.pollOnce().catch((err) => {
-        console.error("[LinearPoller] poll error:", safeErrorMessage(err));
+        logger.error("[LinearPoller] poll error", { error: safeErrorMessage(err) });
       });
     }, this.intervalMs);
   }
@@ -91,10 +92,11 @@ export class LinearPoller {
       try {
         issues = await this.linearClient.searchIssues(Object.keys(searchFilter).length > 0 ? searchFilter : {});
       } catch (err) {
-        console.error(
-          `[LinearPoller] Failed to fetch issues for state=${state ?? "all"} teams=${teamIds?.join(",") ?? "all"}:`,
-          safeErrorMessage(err),
-        );
+        logger.error("[LinearPoller] Failed to fetch issues", {
+          state: state ?? "all",
+          teams: teamIds?.join(",") ?? "all",
+          error: safeErrorMessage(err),
+        });
         continue;
       }
 
@@ -123,7 +125,7 @@ export class LinearPoller {
               },
             });
           } catch (err) {
-            console.error(`[LinearPoller] Failed to ingest ${issue.identifier}:`, safeErrorMessage(err));
+            logger.error(`[LinearPoller] Failed to ingest ${issue.identifier}`, { error: safeErrorMessage(err) });
           }
         }
       }
