@@ -14,6 +14,8 @@ export type { HealthMonitorConfig } from "./health/index.js";
 export { DEFAULT_HEALTH_CONFIG, HealthMonitor } from "./health/index.js";
 export type { IngestEvent } from "./ingestion/index.js";
 export { IngestEventSchema, Ingestor } from "./ingestion/index.js";
+export type { HeartbeatReaperConfig } from "./pool/heartbeat.js";
+export { DEFAULT_HEARTBEAT_REAPER_CONFIG, HeartbeatReaper } from "./pool/heartbeat.js";
 export { Pool } from "./pool/index.js";
 export type { SlotState, WorkerResult } from "./pool/types.js";
 export type { RunLoopConfig } from "./run-loop/index.js";
