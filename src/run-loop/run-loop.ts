@@ -303,7 +303,7 @@ export class RunLoop {
           }
         }
 
-        if (activityHistory && !(currentArtifacts as Record<string, unknown> | undefined)?.activityHistory) {
+        if (activityHistory) {
           currentArtifacts = { ...(currentArtifacts ?? {}), activityHistory: activityHistory };
         }
 
