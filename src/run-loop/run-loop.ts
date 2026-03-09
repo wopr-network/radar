@@ -175,7 +175,14 @@ export class RunLoop {
     }
 
     try {
-      const modelTier = "sonnet";
+      const claimAny = claim as Record<string, unknown>;
+      const rawModelTier = (claimAny.model_tier as string | undefined) ?? "sonnet";
+      const modelTier: "opus" | "sonnet" | "haiku" =
+        rawModelTier === "opus" || rawModelTier === "haiku" ? rawModelTier : "sonnet";
+      // agentRole is fixed for the lifetime of this claim. On `continue` responses the
+      // new prompt is applied but the agent role stays the same — the next stage's
+      // invocation will be claimed fresh with its own agentRole set by defcon.
+      const agentRole = (claimAny.agent_role as string | null | undefined) ?? null;
       const originalPrompt = claim.prompt;
       let currentPrompt = claim.prompt;
       let currentSignal: string | undefined;
@@ -187,12 +194,15 @@ export class RunLoop {
           const heartbeatInterval = setInterval(() => {
             pool.heartbeat(slotId);
           }, this.pollIntervalMs);
-          console.log(`[radar] slot ${slotId} dispatching entity ${claim.entity_id} model=${modelTier}`);
+          console.log(
+            `[radar] slot ${slotId} dispatching entity ${claim.entity_id} model=${modelTier} agentRole=${agentRole ?? "none"}`,
+          );
           try {
             const result = await dispatcher.dispatch(currentPrompt, {
               modelTier,
               workerId,
               entityId: claim.entity_id,
+              agentRole,
             });
             console.log(`[radar] slot ${slotId} dispatch done signal=${result.signal} exitCode=${result.exitCode}`);
             currentSignal = result.signal;

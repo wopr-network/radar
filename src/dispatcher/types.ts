@@ -6,6 +6,7 @@ export interface DispatchOpts {
   modelTier: "opus" | "sonnet" | "haiku";
   workerId: string;
   entityId: string;
+  agentRole?: string | null;
   timeout?: number;
 }
 
