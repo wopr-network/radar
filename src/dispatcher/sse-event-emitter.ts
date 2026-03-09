@@ -6,6 +6,8 @@ export interface SseEventEmitterConfig {
   modelTier: "opus" | "sonnet" | "haiku";
   sessionId?: string;
   timeoutMs?: number;
+  /** Optional external AbortController — caller can check signal.aborted after timeout fires. */
+  abortController?: AbortController;
 }
 
 const DEFAULT_TIMEOUT_MS = 30 * 60 * 1000;
@@ -14,9 +16,9 @@ export class SseEventEmitter implements INukeEventEmitter {
   constructor(private config: SseEventEmitterConfig) {}
 
   async *events(): AsyncIterable<NukeEvent> {
-    const { baseUrl, prompt, modelTier, sessionId, timeoutMs = DEFAULT_TIMEOUT_MS } = this.config;
+    const { baseUrl, prompt, modelTier, sessionId, timeoutMs = DEFAULT_TIMEOUT_MS, abortController } = this.config;
 
-    const controller = new AbortController();
+    const controller = abortController ?? new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
 
     let res: Response;
@@ -43,14 +45,37 @@ export class SseEventEmitter implements INukeEventEmitter {
       throw new Error("nuke /dispatch response has no body");
     }
 
+    const reader = res.body.getReader();
     try {
-      const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buf = "";
 
       while (true) {
         const { done, value } = await reader.read();
-        if (done) break;
+
+        if (done) {
+          // Flush any remaining bytes from the decoder and process any final event in buf
+          buf += decoder.decode();
+          if (buf.startsWith("data:")) {
+            const json = buf.slice(5).trim();
+            if (json) {
+              try {
+                const event = JSON.parse(json) as NukeEvent;
+                if (
+                  event.type === "system" ||
+                  event.type === "tool_use" ||
+                  event.type === "text" ||
+                  event.type === "result"
+                ) {
+                  yield event;
+                }
+              } catch {
+                // malformed — ignore
+              }
+            }
+          }
+          break;
+        }
 
         buf += decoder.decode(value, { stream: true });
         const lines = buf.split("\n");
@@ -79,6 +104,7 @@ export class SseEventEmitter implements INukeEventEmitter {
       }
     } finally {
       clearTimeout(timer);
+      reader.cancel().catch(() => undefined);
     }
   }
 }

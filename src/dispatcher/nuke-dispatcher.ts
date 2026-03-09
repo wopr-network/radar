@@ -9,7 +9,7 @@ import type { DispatchOpts, INukeDispatcher, WorkerResult } from "./types.js";
 export interface NukeConfig {
   /** Maps discipline name → Docker image. e.g. { coder: "ghcr.io/wopr-network/wopr-nuke-coder:latest" } */
   disciplineImages: Record<string, string>;
-  /** Directory radar writes credential files into before container start. Mounted read-only at /run/secrets. */
+  /** Parent directory under which per-launch secret subdirectories are created. */
   secretsDir: string;
   /** Secrets to write as individual files — key = filename, value = content. */
   secrets?: Record<string, string>;
@@ -33,7 +33,8 @@ export class NukeDispatcher implements INukeDispatcher {
   }
 
   async dispatch(prompt: string, opts: DispatchOpts): Promise<WorkerResult> {
-    const { entityId, workerId: slotId, modelTier, agentRole: discipline = "coder" } = opts;
+    const { entityId, workerId: slotId, modelTier, agentRole } = opts;
+    const discipline = agentRole ?? "coder";
 
     logger.info(`[nuke] [${slotId}] START`, { entity: entityId, discipline, modelTier });
 
@@ -45,25 +46,29 @@ export class NukeDispatcher implements INukeDispatcher {
       });
     }
 
+    // Shared controller so we can distinguish timeout aborts from other errors
+    const controller = new AbortController();
     let container: Awaited<ReturnType<ContainerLauncher["launch"]>> | undefined;
 
     try {
-      container = await this.launcher.launch(discipline ?? "coder");
+      container = await this.launcher.launch(discipline);
 
       const emitter = new SseEventEmitter({
         baseUrl: container.baseUrl,
         prompt,
         modelTier,
         timeoutMs: opts.timeout,
+        abortController: controller,
       });
 
       return await processEvents(emitter, entityId, slotId, this.activityRepo);
     } catch (err) {
-      logger.error(`[nuke] [${slotId}] ERROR`, {
+      const signal = controller.signal.aborted ? "timeout" : "crash";
+      logger.error(`[nuke] [${slotId}] ${signal.toUpperCase()}`, {
         error: err instanceof Error ? err.message : String(err),
       });
       return {
-        signal: "crash",
+        signal,
         artifacts: { error: err instanceof Error ? err.message : String(err) },
         exitCode: -1,
       };

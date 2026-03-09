@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type Docker from "dockerode";
@@ -67,7 +67,7 @@ describe("ContainerLauncher", () => {
     await expect(launcher.launch("unknown")).rejects.toThrow('No image configured for discipline "unknown"');
   });
 
-  it("writes secrets to secretsDir before container starts", async () => {
+  it("writes secrets to a per-launch subdir of secretsDir before container starts", async () => {
     const container = makeContainer();
     const docker = makeDocker(container);
     const launcher = new ContainerLauncher({
@@ -79,26 +79,27 @@ describe("ContainerLauncher", () => {
 
     await launcher.launch("coder");
 
-    const key = await readFile(join(secretsDir, "api-key"), "utf-8");
-    const other = await readFile(join(secretsDir, "other"), "utf-8");
+    // Secrets go into a run-* subdirectory, not secretsDir itself
+    const subdirs = await readdir(secretsDir);
+    const launchDir = subdirs.find((d) => d.startsWith("run-")) ?? "";
+    expect(launchDir).toBeTruthy();
+    const key = await readFile(join(secretsDir, launchDir, "api-key"), "utf-8");
+    const other = await readFile(join(secretsDir, launchDir, "other"), "utf-8");
     expect(key).toBe("tok-abc");
     expect(other).toBe("val");
   });
 
-  it("mounts secretsDir read-only at /run/secrets", async () => {
+  it("mounts per-launch subdir read-only at /run/secrets", async () => {
     const container = makeContainer();
     const docker = makeDocker(container);
     const launcher = new ContainerLauncher({ disciplineImages: { coder: "img" }, secretsDir, docker });
 
     await launcher.launch("coder");
 
-    expect(docker.createContainer).toHaveBeenCalledWith(
-      expect.objectContaining({
-        HostConfig: expect.objectContaining({
-          Binds: [`${secretsDir}:/run/secrets:ro`],
-        }),
-      }),
-    );
+    const call = vi.mocked(docker.createContainer).mock.calls[0][0] as { HostConfig?: { Binds?: string[] } };
+    const binds = call.HostConfig?.Binds ?? [];
+    expect(binds).toHaveLength(1);
+    expect(binds[0]).toMatch(new RegExp(`^${secretsDir}/run-[^/]+:/run/secrets:ro$`));
   });
 
   it("does not pass secrets as env vars", async () => {
@@ -130,6 +131,24 @@ describe("ContainerLauncher", () => {
 
     expect(container.stop).toHaveBeenCalled();
     expect(container.remove).toHaveBeenCalledWith({ force: true });
+  });
+
+  it("teardown cleans up per-launch secrets subdir", async () => {
+    const launcher = new ContainerLauncher({
+      disciplineImages: { coder: "img" },
+      secretsDir,
+      secrets: { token: "s3cr3t" },
+      docker: makeDocker(),
+    });
+
+    const { teardown } = await launcher.launch("coder");
+    const subdirsBefore = await readdir(secretsDir);
+    expect(subdirsBefore.some((d) => d.startsWith("run-"))).toBe(true);
+
+    await teardown();
+
+    const subdirsAfter = await readdir(secretsDir);
+    expect(subdirsAfter.filter((d) => d.startsWith("run-"))).toHaveLength(0);
   });
 
   it("teardown still removes if stop throws", async () => {
