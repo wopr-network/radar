@@ -59,6 +59,10 @@ export class Pool {
     slot.state = state;
   }
 
+  totalCapacity(): number {
+    return this.capacity;
+  }
+
   availableSlots(): number {
     return Math.max(0, this.capacity - this.slots.size);
   }

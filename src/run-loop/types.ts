@@ -4,6 +4,11 @@ import type { DefconClient } from "../defcon/client.js";
 import type { Dispatcher } from "../dispatcher/types.js";
 import type { Pool } from "../pool/pool.js";
 
+export interface SlotRole {
+  discipline: string;
+  count: number;
+}
+
 export interface RunLoopConfig {
   pool: Pool;
   defcon: DefconClient;
@@ -12,7 +17,10 @@ export interface RunLoopConfig {
   workerRepo?: IWorkerRepo;
   workerType?: string;
   workerDiscipline?: string;
-  role: string;
+  /** Multi-slot role configuration. Takes precedence over `role`. */
+  roles?: SlotRole[];
+  /** Single-discipline shorthand — equivalent to `roles: [{ discipline, count: pool.size }]`. */
+  role?: string;
   flow?: string;
   pollIntervalMs?: number;
   workerIdPrefix?: string;

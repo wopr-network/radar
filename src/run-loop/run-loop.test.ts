@@ -38,7 +38,7 @@ function makeConfig(overrides: Partial<RunLoopConfig> = {}): RunLoopConfig {
     defcon: makeDefcon([{ retry_after_ms: 50 }]),
     dispatcher: makeDispatcher({ signal: "pr_created", artifacts: {}, exitCode: 0 }),
     activityRepo: makeActivityRepo(""),
-    role: "engineering",
+    roles: [{ discipline: "engineering", count: 1 }],
     pollIntervalMs: 5,
     ...overrides,
   };
@@ -117,5 +117,40 @@ describe("RunLoop — activity history injection on continue", () => {
 
     const secondCallPrompt = vi.mocked(dispatcher.dispatch).mock.calls[1]?.[0];
     expect(secondCallPrompt).toBe("Retry please");
+  });
+});
+
+describe("RunLoop — multi-discipline routing", () => {
+  it("routes claims with per-slot discipline", async () => {
+    const dispatcher = makeDispatcher({ signal: "done", artifacts: {}, exitCode: 0 });
+    const defcon = {
+      claim: vi
+        .fn()
+        .mockResolvedValueOnce({ entity_id: "e-eng", prompt: "eng work", flow: "f1" })
+        .mockResolvedValueOnce({ entity_id: "e-ops", prompt: "ops work", flow: "f1" })
+        .mockResolvedValue({ retry_after_ms: 50 }),
+      report: vi.fn().mockResolvedValue({ next_action: "done" }),
+    } as unknown as import("../defcon/client.js").DefconClient;
+
+    const config = makeConfig({
+      pool: new Pool(2),
+      defcon,
+      dispatcher,
+      roles: [
+        { discipline: "engineering", count: 1 },
+        { discipline: "devops", count: 1 },
+      ],
+    });
+
+    const loop = new RunLoop(config);
+    loop.start();
+
+    await vi.waitFor(() => expect(defcon.claim).toHaveBeenCalledTimes(2), { timeout: 3000 });
+    await loop.stop();
+
+    const claimCalls = vi.mocked(defcon.claim).mock.calls;
+    const roles = claimCalls.map((c) => (c[0] as { role: string }).role);
+    expect(roles).toContain("engineering");
+    expect(roles).toContain("devops");
   });
 });

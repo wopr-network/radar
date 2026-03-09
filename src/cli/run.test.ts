@@ -33,7 +33,7 @@ describe("radar run CLI parsing", () => {
     ]);
     const opts = program.commands[0].opts();
     expect(opts.workers).toBe(8);
-    expect(opts.role).toBe("engineering");
+    expect(opts.role).toContain("engineering");
     expect(opts.worker).toBe("claude-code");
     expect(opts.flow).toBe("wopr-changeset");
     expect(opts.seed).toBe("seeds/radar.json");
@@ -47,18 +47,21 @@ describe("radar run CLI parsing", () => {
     expect(opts.defconUrl).toBe("http://localhost:3000");
   });
 
-  it("errors when --workers is missing", () => {
-    const program = makeProgram();
-    expect(() => {
-      program.parse(["node", "radar", "run", "-r", "qa"]);
-    }).toThrow();
-  });
+  it("errors when --role is missing (action validation)", async () => {
+    const exitSpy = vi.spyOn(process, "exit").mockImplementation((() => {
+      throw new Error("process.exit called");
+    }) as () => never);
+    const errorSpy = vi.spyOn(logger, "error").mockImplementation(() => logger);
 
-  it("errors when --role is missing", () => {
-    const program = makeProgram();
-    expect(() => {
-      program.parse(["node", "radar", "run", "-w", "4"]);
-    }).toThrow();
+    const program = buildProgram();
+    program.exitOverride();
+    try {
+      await expect(program.parseAsync(["node", "radar", "run", "-w", "4"])).rejects.toThrow("process.exit called");
+      expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("at least one --role is required"));
+    } finally {
+      exitSpy.mockRestore();
+      errorSpy.mockRestore();
+    }
   });
 
   it("rejects NaN --workers value", async () => {
@@ -153,12 +156,68 @@ describe("port validation", () => {
   });
 });
 
+describe("multi-role parsing", () => {
+  it("collects multiple --role flags into array", () => {
+    const program = makeProgram();
+    program.parse(["node", "radar", "run", "--role", "engineering:6", "--role", "devops:2"]);
+    const opts = program.commands[0].opts();
+    // Commander collects repeatable option into an array
+    expect(opts.role).toEqual(["engineering:6", "devops:2"]);
+  });
+
+  it("collects single --role flag as array", () => {
+    const program = makeProgram();
+    program.parse(["node", "radar", "run", "-w", "4", "-r", "engineering"]);
+    const opts = program.commands[0].opts();
+    expect(opts.role).toEqual(["engineering"]);
+    expect(opts.workers).toBe(4);
+  });
+
+  it("rejects invalid discipline in --role pair", async () => {
+    const exitSpy = vi.spyOn(process, "exit").mockImplementation((() => {
+      throw new Error("process.exit called");
+    }) as () => never);
+    const errorSpy = vi.spyOn(logger, "error").mockImplementation(() => logger);
+
+    const program = buildProgram();
+    program.exitOverride();
+    try {
+      await expect(program.parseAsync(["node", "radar", "run", "--role", "hacker:3"])).rejects.toThrow(
+        "process.exit called",
+      );
+      expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("invalid role"));
+    } finally {
+      exitSpy.mockRestore();
+      errorSpy.mockRestore();
+    }
+  });
+
+  it("rejects non-positive count in --role pair", async () => {
+    const exitSpy = vi.spyOn(process, "exit").mockImplementation((() => {
+      throw new Error("process.exit called");
+    }) as () => never);
+    const errorSpy = vi.spyOn(logger, "error").mockImplementation(() => logger);
+
+    const program = buildProgram();
+    program.exitOverride();
+    try {
+      await expect(program.parseAsync(["node", "radar", "run", "--role", "engineering:0"])).rejects.toThrow(
+        "process.exit called",
+      );
+      expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("count must be a positive integer"));
+    } finally {
+      exitSpy.mockRestore();
+      errorSpy.mockRestore();
+    }
+  });
+});
+
 describe("role validation", () => {
   it("accepts valid disciplines", () => {
     for (const role of ["engineering", "devops", "qa", "security"]) {
       const program = makeProgram();
       program.parse(["node", "radar", "run", "-w", "1", "-r", role]);
-      expect(program.commands[0].opts().role).toBe(role);
+      expect(program.commands[0].opts().role).toContain(role);
     }
   });
 
