@@ -1,4 +1,5 @@
 import { createDb } from "../db/index.js";
+import { logger } from "../logger.js";
 import { loadSeed } from "../seed/loader.js";
 
 export interface RunSeedOpts {
@@ -16,7 +17,7 @@ export async function runSeed(opts: RunSeedOpts): Promise<void> {
       db,
       adminToken: opts.adminToken ?? process.env.DEFCON_ADMIN_TOKEN,
     });
-    console.log(`[radar] Seeded: ${result.flows} flows, ${result.sources} sources, ${result.watches} watches`);
+    logger.info(`[radar] Seeded: ${result.flows} flows, ${result.sources} sources, ${result.watches} watches`);
   } finally {
     db.$client.close();
   }

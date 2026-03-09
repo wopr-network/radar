@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { logger } from "../logger.js";
 import { buildProgram } from "./index.js";
 
 function makeProgram() {
@@ -64,7 +65,7 @@ describe("radar run CLI parsing", () => {
     const exitSpy = vi.spyOn(process, "exit").mockImplementation((() => {
       throw new Error("process.exit called");
     }) as () => never);
-    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const errorSpy = vi.spyOn(logger, "error").mockImplementation(() => logger);
 
     const program = buildProgram(); // use real action so validation runs
     program.exitOverride();
@@ -99,7 +100,7 @@ describe("port validation", () => {
     const exitSpy = vi.spyOn(process, "exit").mockImplementation((() => {
       throw new Error("process.exit called");
     }) as () => never);
-    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const errorSpy = vi.spyOn(logger, "error").mockImplementation(() => logger);
 
     const program = buildProgram();
     program.exitOverride();
@@ -118,7 +119,7 @@ describe("port validation", () => {
     const exitSpy = vi.spyOn(process, "exit").mockImplementation((() => {
       throw new Error("process.exit called");
     }) as () => never);
-    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const errorSpy = vi.spyOn(logger, "error").mockImplementation(() => logger);
 
     const program = buildProgram();
     program.exitOverride();
@@ -137,7 +138,7 @@ describe("port validation", () => {
     const exitSpy = vi.spyOn(process, "exit").mockImplementation((() => {
       throw new Error("process.exit called");
     }) as () => never);
-    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const errorSpy = vi.spyOn(logger, "error").mockImplementation(() => logger);
 
     const program = buildProgram();
     program.exitOverride();
@@ -165,7 +166,7 @@ describe("role validation", () => {
     const exitSpy = vi.spyOn(process, "exit").mockImplementation((() => {
       throw new Error("process.exit called");
     }) as () => never);
-    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const errorSpy = vi.spyOn(logger, "error").mockImplementation(() => logger);
 
     const program = buildProgram(); // use real action so validation runs
     program.exitOverride();

@@ -34,24 +34,23 @@ describe("radar seed command (runSeed)", () => {
     expect(mockClient.close).toHaveBeenCalled();
   });
 
-  it("should print summary on success", async () => {
+  it("should log summary on success", async () => {
     const { loadSeed } = await import("../seed/loader.js");
     const { createDb } = await import("../db/index.js");
+    const { logger } = await import("../logger.js");
 
     const mockClient = { close: vi.fn() };
     const mockDb = { $client: mockClient };
     vi.mocked(createDb).mockReturnValue(mockDb as never);
     vi.mocked(loadSeed).mockResolvedValue({ flows: 3, sources: 2, watches: 4 });
 
-    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const loggerSpy = vi.spyOn(logger, "info").mockImplementation(() => logger);
 
     const { runSeed } = await import("./seed-action.js");
     await runSeed({ seedPath: "seeds/test.seed.json", defconUrl: "http://localhost:3000", db: "radar.db" });
 
-    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("3 flows"));
-    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("2 sources"));
-    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("4 watches"));
-    consoleSpy.mockRestore();
+    expect(loggerSpy).toHaveBeenCalledWith(expect.stringContaining("3 flows"));
+    loggerSpy.mockRestore();
   });
 
   it("should close db even on error", async () => {

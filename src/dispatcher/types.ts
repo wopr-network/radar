@@ -8,6 +8,8 @@ export interface DispatchOpts {
   entityId: string;
   agentRole?: string | null;
   timeout?: number;
+  /** Handlebars context from defcon's invocation-builder — used to render agent MD templates */
+  templateContext?: Record<string, unknown> | null;
 }
 
 export interface Dispatcher {

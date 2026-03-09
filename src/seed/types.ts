@@ -45,6 +45,7 @@ export const SeedFlowSchema = z
     description: z.string().optional(),
     maxConcurrent: z.number().int().min(0).optional(),
     maxConcurrentPerRepo: z.number().int().min(0).optional(),
+    claimRetryAfterMs: z.number().int().min(1000).optional(),
     states: z.array(SeedStateSchema).min(1),
     transitions: z.array(SeedTransitionSchema).min(1),
   })

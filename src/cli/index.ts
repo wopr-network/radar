@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import { Command } from "commander";
+import { logger } from "../logger.js";
 import { renderWorkerPrompt } from "./worker-prompt.js";
 
 const require = createRequire(import.meta.url);
@@ -32,17 +33,17 @@ export function buildProgram(): Command {
     .option("--port <n>", "API server port", (v: string) => Number.parseInt(v, 10), 8080)
     .action(async (opts) => {
       if (Number.isNaN(opts.workers) || opts.workers <= 0) {
-        console.error(`Error: --workers must be a positive integer, got "${opts.workers}"`);
+        logger.error(`Error: --workers must be a positive integer, got "${opts.workers}"`);
         process.exit(1);
       }
 
       if (!(VALID_DISCIPLINES as readonly string[]).includes(opts.role)) {
-        console.error(`Error: invalid role "${opts.role}". Must be one of: ${VALID_DISCIPLINES.join(", ")}`);
+        logger.error(`Error: invalid role "${opts.role}". Must be one of: ${VALID_DISCIPLINES.join(", ")}`);
         process.exit(1);
       }
 
       if (opts.maxConcurrent != null && (Number.isNaN(opts.maxConcurrent) || opts.maxConcurrent < 1)) {
-        console.error(`Invalid --max-concurrent: ${opts.maxConcurrent}`);
+        logger.error(`Invalid --max-concurrent: ${opts.maxConcurrent}`);
         process.exit(1);
       }
 
@@ -50,13 +51,13 @@ export function buildProgram(): Command {
         opts.maxConcurrentPerRepo != null &&
         (Number.isNaN(opts.maxConcurrentPerRepo) || opts.maxConcurrentPerRepo < 1)
       ) {
-        console.error(`Invalid --max-concurrent-per-repo: ${opts.maxConcurrentPerRepo}`);
+        logger.error(`Invalid --max-concurrent-per-repo: ${opts.maxConcurrentPerRepo}`);
         process.exit(1);
       }
 
       const port = opts.port as number;
       if (Number.isNaN(port) || port < 1 || port > 65535) {
-        console.error(`Invalid port: ${String(opts.port)}`);
+        logger.error(`Invalid port: ${String(opts.port)}`);
         process.exit(1);
       }
 
@@ -92,7 +93,7 @@ export function buildProgram(): Command {
             adminToken: opts.adminToken,
           });
         } catch (err) {
-          console.error(`[radar] Seed failed: ${(err as Error).message}`);
+          logger.error(`[radar] Seed failed`, { error: (err as Error).message });
           process.exit(1);
         }
 
@@ -137,11 +138,11 @@ export function buildProgram(): Command {
               .run();
           }
         } catch (err) {
-          console.error(`[radar] Failed to populate API DB from seed: ${(err as Error).message}`);
+          logger.error(`[radar] Failed to populate API DB from seed`, { error: (err as Error).message });
           process.exit(1);
         }
 
-        console.log(
+        logger.info(
           `[radar] Seed loaded: ${seedResult.flows} flows, ${seedResult.sources} sources, ${seedResult.watches} watches`,
         );
       }
@@ -162,9 +163,8 @@ export function buildProgram(): Command {
       const activityRepo = new DrizzleEntityActivityRepo(radarDb);
 
       if (!opts.dummy && process.getuid?.() === 0) {
-        console.error(
-          "[radar] SdkDispatcher requires a non-root user (bypassPermissions is blocked when running as root). " +
-            "Re-run as a non-root user or pass --dummy for testing.",
+        logger.error(
+          "[radar] SdkDispatcher requires a non-root user (bypassPermissions is blocked when running as root). Re-run as a non-root user or pass --dummy for testing.",
         );
         process.exit(1);
       }
@@ -444,7 +444,7 @@ export function buildProgram(): Command {
       });
 
       await new Promise<void>((res) => apiServer.listen(port, res));
-      console.log(`[radar] API server listening on port ${port}`);
+      logger.info(`[radar] API server listening on port ${port}`);
 
       const loop = new RunLoop({
         pool,
@@ -459,7 +459,7 @@ export function buildProgram(): Command {
         maxConcurrentPerRepo: opts.maxConcurrentPerRepo,
       });
 
-      console.log(
+      logger.info(
         `[radar] Starting ${opts.workers} worker slots — role: ${opts.role}${opts.flow ? ` — flow: ${opts.flow}` : ""}${opts.worker ? ` — worker: ${opts.worker}` : ""}`,
       );
       loop.start();
@@ -468,10 +468,10 @@ export function buildProgram(): Command {
       const shutdown = async () => {
         if (shuttingDown) return;
         shuttingDown = true;
-        console.log("[radar] Shutting down gracefully...");
+        logger.info("[radar] Shutting down gracefully...");
         await loop.stop();
         await new Promise<void>((res) => apiServer.close(() => res()));
-        console.log("[radar] All slots stopped.");
+        logger.info("[radar] All slots stopped.");
         process.exit(0);
       };
 
@@ -489,9 +489,7 @@ export function buildProgram(): Command {
     .option("--worker-id <id>", "Use a specific worker ID instead of generating one")
     .action((opts) => {
       if (!(VALID_DISCIPLINES as readonly string[]).includes(opts.discipline)) {
-        console.error(
-          `Error: invalid discipline "${opts.discipline}". Must be one of: ${VALID_DISCIPLINES.join(", ")}`,
-        );
+        logger.error(`Error: invalid discipline "${opts.discipline}". Must be one of: ${VALID_DISCIPLINES.join(", ")}`);
         process.exit(1);
       }
       const workerId = opts.workerId ?? `wkr-${randomUUID()}`;
@@ -500,7 +498,7 @@ export function buildProgram(): Command {
         discipline: opts.discipline,
         defconUrl: opts.defconUrl,
       });
-      console.log(prompt);
+      process.stdout.write(`${prompt}\n`);
     });
 
   program
@@ -523,7 +521,7 @@ export function buildProgram(): Command {
       try {
         await runSeed({ seedPath, defconUrl: opts.defconUrl, db: opts.db });
       } catch (err) {
-        console.error(`[radar] Seed failed: ${err instanceof Error ? err.message : err}`);
+        logger.error(`[radar] Seed failed`, { error: err instanceof Error ? err.message : String(err) });
         process.exit(1);
       }
     });

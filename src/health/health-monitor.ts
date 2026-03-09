@@ -1,4 +1,5 @@
 import type { DefconClient } from "../defcon/client.js";
+import { logger } from "../logger.js";
 import type { Pool } from "../pool/pool.js";
 import type { HealthMonitorConfig } from "./types.js";
 
@@ -53,20 +54,24 @@ export class HealthMonitor {
             artifacts: { reason: "worker_timeout" },
           });
         } catch (err) {
-          console.error("[HealthMonitor] Error reporting dead slot:", err);
+          logger.error("[HealthMonitor] Error reporting dead slot", {
+            error: err instanceof Error ? err.message : String(err),
+          });
         }
       }
 
       // Re-check: if lastHeartbeat advanced during the await, the worker is alive — skip release.
       if (slot.lastHeartbeat !== heartbeatBefore) {
-        console.error("[health-monitor] warning: heartbeat received during fail report — slot not released");
+        logger.warn("[health-monitor] heartbeat received during fail report — slot not released");
         continue;
       }
 
       try {
         this.pool.release(slot.slotId);
       } catch (err) {
-        console.error("[HealthMonitor] Error releasing slot:", err);
+        logger.error("[HealthMonitor] Error releasing slot", {
+          error: err instanceof Error ? err.message : String(err),
+        });
       }
     }
   }
