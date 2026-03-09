@@ -208,6 +208,7 @@ export class RunLoop {
               workerId,
               entityId: claim.entity_id,
               agentRole,
+              templateContext: ((claim as Record<string, unknown>).context as Record<string, unknown> | null) ?? null,
             });
             logger.info(`[radar] slot ${slotId} dispatch done`, {
               signal: result.signal,

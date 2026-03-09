@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import { query } from "@anthropic-ai/claude-agent-sdk";
+import Handlebars from "handlebars";
 import type { IEntityActivityRepo } from "../db/repos/entity-activity-repo.js";
 import { logger } from "../logger.js";
 import { parseSignal } from "./parse-signal.js";
@@ -65,7 +66,7 @@ export class SdkDispatcher implements Dispatcher {
   }
 
   async dispatch(prompt: string, opts: DispatchOpts): Promise<WorkerResult> {
-    const { entityId, workerId: slotId, modelTier, agentRole, timeout = DEFAULT_TIMEOUT_MS } = opts;
+    const { entityId, workerId: slotId, modelTier, agentRole, timeout = DEFAULT_TIMEOUT_MS, templateContext } = opts;
 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeout);
@@ -73,7 +74,18 @@ export class SdkDispatcher implements Dispatcher {
     const allTextBlocks: string[] = [];
 
     try {
-      const agentMd = agentRole ? loadAgentMd(this.agentsDir, agentRole) : null;
+      const rawAgentMd = agentRole ? loadAgentMd(this.agentsDir, agentRole) : null;
+      let agentMd = rawAgentMd;
+      if (rawAgentMd && templateContext) {
+        try {
+          agentMd = Handlebars.compile(rawAgentMd)(templateContext);
+        } catch (err) {
+          logger.warn(`[claude] failed to render agent MD template for "${agentRole}"`, {
+            error: err instanceof Error ? err.message : String(err),
+          });
+          agentMd = rawAgentMd;
+        }
+      }
       const fullPrompt = agentMd ? `${agentMd}\n\n---\n\n${prompt}` : prompt;
 
       logger.info(`[claude] [${slotId}] START`, {
