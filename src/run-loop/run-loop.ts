@@ -222,7 +222,7 @@ export class RunLoop {
       }
     }
 
-    const slot = pool.allocate(slotId, workerId, this.config.role, claim.entity_id, claim.prompt, claimFlow, claimRepo);
+    const slot = pool.allocate(slotId, workerId, discipline, claim.entity_id, claim.prompt, claimFlow, claimRepo);
     if (!slot) {
       try {
         await defcon.report({

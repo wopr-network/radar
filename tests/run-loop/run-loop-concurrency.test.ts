@@ -29,8 +29,8 @@ function createEchoDispatcher(): Dispatcher {
 describe("RunLoop concurrency enforcement", () => {
   it("skips claim when pool is at maxConcurrent for the flow", async () => {
     const pool = new Pool(4);
-    pool.allocate("pre-1", "w1", "e1", "p1", "wopr-changeset", "wopr-network/wopr");
-    pool.allocate("pre-2", "w2", "e2", "p2", "wopr-changeset", "wopr-network/defcon");
+    pool.allocate("pre-1", "w1", "engineering", "e1", "p1", "wopr-changeset", "wopr-network/wopr");
+    pool.allocate("pre-2", "w2", "engineering", "e2", "p2", "wopr-changeset", "wopr-network/defcon");
 
     let claimCallCount = 0;
     const defcon = createMockDefcon({
@@ -60,7 +60,7 @@ describe("RunLoop concurrency enforcement", () => {
 
   it("allows claim when under maxConcurrent", async () => {
     const pool = new Pool(4);
-    pool.allocate("pre-1", "w1", "e1", "p1", "wopr-changeset", "wopr-network/wopr");
+    pool.allocate("pre-1", "w1", "engineering", "e1", "p1", "wopr-changeset", "wopr-network/wopr");
 
     let claimed = false;
     const defcon = createMockDefcon({
@@ -89,8 +89,8 @@ describe("RunLoop concurrency enforcement", () => {
 
   it("reports crash and skips when per-repo limit is reached", async () => {
     const pool = new Pool(4);
-    pool.allocate("pre-1", "w1", "e1", "p1", "wopr-changeset", "wopr-network/wopr");
-    pool.allocate("pre-2", "w2", "e2", "p2", "wopr-changeset", "wopr-network/wopr");
+    pool.allocate("pre-1", "w1", "engineering", "e1", "p1", "wopr-changeset", "wopr-network/wopr");
+    pool.allocate("pre-2", "w2", "engineering", "e2", "p2", "wopr-changeset", "wopr-network/wopr");
 
     let reportCallCount = 0;
     const defcon = createMockDefcon({
@@ -139,8 +139,8 @@ describe("RunLoop concurrency enforcement", () => {
   it("does not enforce maxConcurrent when flow is undefined", async () => {
     const pool = new Pool(4);
     // Even with slots pre-filled with no flowName, maxConcurrent should not block
-    pool.allocate("pre-1", "w1", "e1", "p1");
-    pool.allocate("pre-2", "w2", "e2", "p2");
+    pool.allocate("pre-1", "w1", "engineering", "e1", "p1");
+    pool.allocate("pre-2", "w2", "engineering", "e2", "p2");
 
     let claimed = false;
     const defcon = createMockDefcon({
