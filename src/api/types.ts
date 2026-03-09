@@ -15,7 +15,7 @@ export interface IWorkerRepo {
   getById(id: string): Promise<WorkerRow | undefined>;
   list(): Promise<WorkerRow[]>;
   listByStatus(status: string): Promise<WorkerRow[]>;
-  findStale(cutoffMs: number): Promise<WorkerRow[]>;
+  findStale(cutoffEpochSec: number): Promise<WorkerRow[]>;
 }
 
 /** @deprecated Use IWorkerRepo instead */
