@@ -11,6 +11,61 @@ const { version } = require("../../package.json") as { version: string };
 
 export const VALID_DISCIPLINES = ["engineering", "devops", "qa", "security"] as const;
 
+/**
+ * Parse raw --role flag values into typed {discipline, count} pairs.
+ *
+ * Rules:
+ *  - Each entry is "discipline" or "discipline:count" (exactly one colon max).
+ *  - Extra colon segments (e.g. "engineering:6:extra") are rejected.
+ *  - Multiple bare disciplines combined with --workers is rejected; use
+ *    "discipline:count" syntax when specifying more than one discipline.
+ *  - A single bare discipline inherits `workers` (defaulting to 1).
+ *
+ * Throws an Error with a human-readable message on any validation failure.
+ */
+export function parseRoles(
+  rawRoles: string[],
+  workers: number | undefined,
+): Array<{ discipline: string; count: number }> {
+  // Count bare (no-colon) entries upfront to detect multi-bare ambiguity early
+  const bareRoles = rawRoles.filter((r) => !r.includes(":"));
+  if (bareRoles.length > 1) {
+    throw new Error(
+      `Error: Use --pool for multiple disciplines: --role engineering:N --role devops:M. ` +
+        `Bare --role shorthand only works for a single discipline.`,
+    );
+  }
+
+  const roles: Array<{ discipline: string; count: number }> = [];
+
+  for (const raw of rawRoles) {
+    const parts = raw.split(":");
+    const discipline = parts[0];
+
+    if (parts.length > 2) {
+      throw new Error(`Error: invalid --role format "${raw}". Expected "discipline" or "discipline:count"`);
+    }
+
+    if (!(VALID_DISCIPLINES as readonly string[]).includes(discipline)) {
+      throw new Error(`Error: invalid role "${discipline}". Must be one of: ${VALID_DISCIPLINES.join(", ")}`);
+    }
+
+    if (parts.length > 1) {
+      const count = Number.parseInt(parts[1], 10);
+      if (Number.isNaN(count) || count < 1) {
+        throw new Error(`Error: count must be a positive integer in "${raw}"`);
+      }
+      roles.push({ discipline, count });
+    } else {
+      // Single bare discipline — inherit --workers (default 1)
+      const count = workers != null && !Number.isNaN(workers) ? workers : 1;
+      roles.push({ discipline, count });
+    }
+  }
+
+  return roles;
+}
+
 export function buildProgram(): Command {
   const program = new Command();
   program.name("radar").description("The only winning move is to have gates.").version(version);
@@ -46,26 +101,12 @@ export function buildProgram(): Command {
         process.exit(1);
       }
 
-      const roles: Array<{ discipline: string; count: number }> = [];
-      for (const raw of rawRoles) {
-        const parts = raw.split(":");
-        const discipline = parts[0];
-        if (!(VALID_DISCIPLINES as readonly string[]).includes(discipline)) {
-          logger.error(`Error: invalid role "${discipline}". Must be one of: ${VALID_DISCIPLINES.join(", ")}`);
-          process.exit(1);
-        }
-        if (parts.length > 1) {
-          const count = Number.parseInt(parts[1], 10);
-          if (Number.isNaN(count) || count < 1) {
-            logger.error(`Error: count must be a positive integer in "${raw}"`);
-            process.exit(1);
-          }
-          roles.push({ discipline, count });
-        } else {
-          // Bare discipline — use --workers if given, else 1
-          const count = opts.workers != null && !Number.isNaN(opts.workers) ? opts.workers : 1;
-          roles.push({ discipline, count });
-        }
+      let roles: Array<{ discipline: string; count: number }>;
+      try {
+        roles = parseRoles(rawRoles, opts.workers as number | undefined);
+      } catch (err) {
+        logger.error((err as Error).message);
+        process.exit(1);
       }
 
       const totalWorkers = roles.reduce((sum, r) => sum + r.count, 0);

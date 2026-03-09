@@ -88,6 +88,13 @@ export class RunLoop {
       }
     }
 
+    const totalRoleSlots = slotDisciplines.length;
+    if (totalRoleSlots !== this.config.pool.totalCapacity()) {
+      logger.warn(
+        `[radar] roles sum (${totalRoleSlots}) !== pool capacity (${this.config.pool.totalCapacity()}); slot count will follow roles`,
+      );
+    }
+
     for (let i = 0; i < slotDisciplines.length; i++) {
       const slotId = `slot-${i}`;
       const workerId = workerRepo ? workerIdPrefix : `${workerIdPrefix}-${randomUUID().slice(0, 8)}`;
