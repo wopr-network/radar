@@ -21,15 +21,15 @@ export interface IEntityActivityRepo {
    * Returns all activity rows for the entity in ascending seq order.
    * If `since` is provided, only rows with seq > since are returned.
    */
-  getByEntity(entityId: string, since?: number): ActivityRow[];
+  getByEntity(entityId: string, since?: number): Promise<ActivityRow[]>;
 
   /**
    * Returns a prose summary of all prior work for injection into retry prompts.
    * Groups events by slotId (each slot = one attempt).
    * Returns empty string if no activity exists.
    */
-  getSummary(entityId: string): string;
+  getSummary(entityId: string): Promise<string>;
 
   /** Removes all activity rows for the given entity. */
-  deleteByEntity(entityId: string): void;
+  deleteByEntity(entityId: string): Promise<void>;
 }

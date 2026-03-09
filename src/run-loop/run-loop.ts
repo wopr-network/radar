@@ -308,7 +308,7 @@ export class RunLoop {
           let history = "";
           if (this.config.activityRepo) {
             try {
-              history = this.config.activityRepo.getSummary(claim.entity_id);
+              history = await this.config.activityRepo.getSummary(claim.entity_id);
             } catch (err) {
               logger.warn(`[radar] slot ${slotId} getSummary failed, continuing without history`, {
                 error: safeErrorMessage(err),

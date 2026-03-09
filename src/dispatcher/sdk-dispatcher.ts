@@ -93,6 +93,9 @@ export class SdkDispatcher implements INukeDispatcher {
       delete env.CLAUDECODE;
 
       const linearApiKey = env.LINEAR_API_KEY;
+      // Linear's official MCP is a remote server; mcp-remote bridges it as stdio.
+      // The Authorization header must be passed as a CLI arg — mcp-remote has no env-var
+      // alternative for custom headers. The key is visible in /proc/<pid>/cmdline on Linux.
       const mcpServers = linearApiKey
         ? {
             "linear-server": {

@@ -10,9 +10,9 @@ function makeRow(seq: number): ActivityRow {
 function makeRepo(rows: ActivityRow[]): IEntityActivityRepo {
   return {
     insert: vi.fn(),
-    getByEntity: vi.fn().mockReturnValue(rows),
-    getSummary: vi.fn().mockReturnValue(""),
-    deleteByEntity: vi.fn(),
+    getByEntity: vi.fn().mockResolvedValue(rows),
+    getSummary: vi.fn().mockResolvedValue(""),
+    deleteByEntity: vi.fn().mockResolvedValue(undefined),
   };
 }
 
