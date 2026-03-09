@@ -19,7 +19,9 @@ export class SseEventEmitter implements INukeEventEmitter {
     const { baseUrl, prompt, modelTier, sessionId, timeoutMs = DEFAULT_TIMEOUT_MS, abortController } = this.config;
 
     const controller = abortController ?? new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    // Only arm the internal timer when we own the controller; if the caller
+    // passed an external abortController they manage the timeout themselves.
+    const timer = abortController ? undefined : setTimeout(() => controller.abort(), timeoutMs);
 
     let res: Response;
     try {
@@ -30,18 +32,18 @@ export class SseEventEmitter implements INukeEventEmitter {
         signal: controller.signal,
       });
     } catch (err) {
-      clearTimeout(timer);
+      clearTimeout(timer ?? undefined);
       throw err;
     }
 
     if (!res.ok) {
-      clearTimeout(timer);
+      clearTimeout(timer ?? undefined);
       const text = await res.text().catch(() => "");
       throw new Error(`nuke /dispatch returned ${res.status}: ${text}`);
     }
 
     if (!res.body) {
-      clearTimeout(timer);
+      clearTimeout(timer ?? undefined);
       throw new Error("nuke /dispatch response has no body");
     }
 
@@ -103,7 +105,7 @@ export class SseEventEmitter implements INukeEventEmitter {
         }
       }
     } finally {
-      clearTimeout(timer);
+      clearTimeout(timer ?? undefined);
       reader.cancel().catch(() => undefined);
     }
   }
