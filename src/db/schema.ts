@@ -64,6 +64,17 @@ export const entityActivity = sqliteTable(
   ],
 );
 
+export const throughputEvents = sqliteTable(
+  "throughput_events",
+  {
+    id: text("id").primaryKey(),
+    outcome: text("outcome").notNull(), // "completed" | "failed"
+    durationMs: integer("duration_ms").notNull(),
+    createdAt: integer("created_at").notNull(),
+  },
+  (t) => [index("throughput_events_created_at_idx").on(t.createdAt)],
+);
+
 export const entityMap = sqliteTable(
   "entity_map",
   {

@@ -36,7 +36,7 @@ export function createServer(deps: AppDeps): Server {
   registerSourceRoutes(router, deps.sourceRepo);
   registerWatchRoutes(router, deps.watchRepo);
   registerWorkerRoutes(router, deps.workerRepo);
-  registerPoolRoutes(router, deps.pool, () => deps.defconClient.claim({ role: "engineering" }));
+  registerPoolRoutes(router, deps.pool, () => deps.defconClient.claim({ role: "engineering" }), deps.throughputTracker);
   registerEventRoutes(router, deps.eventLogRepo);
   registerActivityRoutes(router, deps.activityRepo);
 

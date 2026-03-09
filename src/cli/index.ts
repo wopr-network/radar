@@ -105,7 +105,7 @@ export function buildProgram(): Command {
       try {
         roles = parseRoles(rawRoles, opts.workers as number | undefined);
       } catch (err) {
-        logger.error((err as Error).message);
+        logger.error(err instanceof Error ? err.message : String(err));
         process.exit(1);
       }
 
@@ -164,7 +164,7 @@ export function buildProgram(): Command {
             adminToken: opts.adminToken,
           });
         } catch (err) {
-          logger.error(`[radar] Seed failed`, { error: (err as Error).message });
+          logger.error(`[radar] Seed failed`, { error: err instanceof Error ? err.message : String(err) });
           process.exit(1);
         }
 
@@ -209,7 +209,9 @@ export function buildProgram(): Command {
               .run();
           }
         } catch (err) {
-          logger.error(`[radar] Failed to populate API DB from seed`, { error: (err as Error).message });
+          logger.error(`[radar] Failed to populate API DB from seed`, {
+            error: err instanceof Error ? err.message : String(err),
+          });
           process.exit(1);
         }
 
@@ -228,7 +230,10 @@ export function buildProgram(): Command {
       const { LinearSourceAdapter } = await import("../sources/linear-adapter.js");
       const { GenericSourceAdapter } = await import("../sources/generic-adapter.js");
 
+      const { ThroughputTracker } = await import("../pool/throughput-tracker.js");
+      const { DrizzleThroughputRepo } = await import("../db/repos/drizzle-throughput-repo.js");
       const pool = new Pool(totalWorkers);
+      const throughputTracker = new ThroughputTracker(new DrizzleThroughputRepo(radarDb));
       const defcon = new DefconClient({ url: opts.defconUrl, workerToken: opts.workerToken });
       const ingestor = new Ingestor(entityMapRepo, defcon);
       const activityRepo = new DrizzleEntityActivityRepo(radarDb);
@@ -453,6 +458,7 @@ export function buildProgram(): Command {
         pool,
         defconClient: defcon,
         adapterRegistry,
+        throughputTracker,
         onWebhook: async (_sourceId: string, event: import("../ingestion/types.js").IngestEvent) => {
           await ingestor.ingest(event);
         },
@@ -475,6 +481,7 @@ export function buildProgram(): Command {
         pollIntervalMs: 5000,
         maxConcurrent: opts.maxConcurrent,
         maxConcurrentPerRepo: opts.maxConcurrentPerRepo,
+        throughputTracker,
       });
 
       const rolesDesc = (opts.roles as Array<{ discipline: string; count: number }>)
@@ -545,6 +552,58 @@ export function buildProgram(): Command {
         logger.error(`[radar] Seed failed`, { error: err instanceof Error ? err.message : String(err) });
         process.exit(1);
       }
+    });
+
+  program
+    .command("status")
+    .description("Show worker pool status")
+    .option("--port <n>", "Radar API port", (v: string) => Number.parseInt(v, 10), 8080)
+    .option("--host <host>", "Radar API host", "localhost")
+    .action(async (opts) => {
+      const port = opts.port as number;
+      const host = opts.host as string;
+      const url = `http://${host}:${port}/api/pool/status`;
+
+      let data: Record<string, unknown>;
+      try {
+        const res = await fetch(url);
+        if (!res.ok) {
+          logger.error(`Failed to fetch pool status: HTTP ${res.status}`);
+          process.exit(1);
+        }
+        data = (await res.json()) as Record<string, unknown>;
+      } catch (err) {
+        logger.error(`Cannot connect to radar at ${url}`, {
+          error: err instanceof Error ? err.message : String(err),
+        });
+        process.exit(1);
+      }
+
+      const workers = data.workers as Record<string, number>;
+      const slots = data.slots as Array<Record<string, unknown>>;
+      const throughput = data.throughput as Record<string, number>;
+
+      console.log("\n=== Radar Pool Status ===\n");
+      console.log(
+        `Workers: ${workers.active} active / ${workers.total_capacity} capacity (${workers.available_slots} available)`,
+      );
+
+      if (slots.length > 0) {
+        console.log("\nSlots:");
+        for (const slot of slots) {
+          console.log(
+            `  ${slot.slotId}  ${slot.status}  ${slot.discipline}  entity=${slot.currentEntityId ?? "none"}  worker=${slot.workerId}`,
+          );
+        }
+      } else {
+        console.log("\nNo active slots.");
+      }
+
+      console.log("\nThroughput (last hour):");
+      console.log(`  Completed: ${throughput.completed_last_hour}`);
+      console.log(`  Failed:    ${throughput.failed_last_hour}`);
+      console.log(`  Avg duration: ${throughput.avg_duration_ms}ms`);
+      console.log("");
     });
 
   return program;

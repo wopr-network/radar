@@ -56,6 +56,13 @@ function initSqlite(path: string): InstanceType<typeof Database> {
       created_at INTEGER NOT NULL,
       UNIQUE (source_id, external_id)
     );
+    CREATE TABLE IF NOT EXISTS throughput_events (
+      id TEXT PRIMARY KEY,
+      outcome TEXT NOT NULL,
+      duration_ms INTEGER NOT NULL,
+      created_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS throughput_events_created_at_idx ON throughput_events (created_at);
     CREATE TABLE IF NOT EXISTS entity_activity (
       id TEXT PRIMARY KEY,
       entity_id TEXT NOT NULL,

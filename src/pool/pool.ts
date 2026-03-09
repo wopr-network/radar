@@ -11,6 +11,7 @@ export class Pool {
   allocate(
     slotId: string,
     workerId: string,
+    discipline: string,
     entityId: string,
     prompt: string,
     flowName: string | null = null,
@@ -21,6 +22,7 @@ export class Pool {
     const slot: Slot = {
       slotId,
       workerId,
+      discipline,
       entityId,
       state: "claimed",
       prompt,
@@ -59,7 +61,7 @@ export class Pool {
     slot.state = state;
   }
 
-  totalCapacity(): number {
+  getCapacity(): number {
     return this.capacity;
   }
 

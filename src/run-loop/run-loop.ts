@@ -89,9 +89,9 @@ export class RunLoop {
     }
 
     const totalRoleSlots = slotDisciplines.length;
-    if (totalRoleSlots !== this.config.pool.totalCapacity()) {
+    if (totalRoleSlots !== this.config.pool.getCapacity()) {
       logger.warn(
-        `[radar] roles sum (${totalRoleSlots}) !== pool capacity (${this.config.pool.totalCapacity()}); slot count will follow roles`,
+        `[radar] roles sum (${totalRoleSlots}) !== pool capacity (${this.config.pool.getCapacity()}); slot count will follow roles`,
       );
     }
 
@@ -222,7 +222,7 @@ export class RunLoop {
       }
     }
 
-    const slot = pool.allocate(slotId, workerId, claim.entity_id, claim.prompt, claimFlow, claimRepo);
+    const slot = pool.allocate(slotId, workerId, discipline, claim.entity_id, claim.prompt, claimFlow, claimRepo);
     if (!slot) {
       try {
         await defcon.report({
@@ -248,6 +248,8 @@ export class RunLoop {
       let currentPrompt = claim.prompt;
       let currentSignal: string | undefined;
       let currentArtifacts: Record<string, unknown> | undefined;
+      const startTime = Date.now();
+      let recorded = false;
 
       while (!this.signal.aborted) {
         if (currentSignal === undefined) {
@@ -326,7 +328,19 @@ export class RunLoop {
         }
 
         // "waiting" — release slot
+        if (this.config.throughputTracker) {
+          const durationMs = Date.now() - startTime;
+          const isSuccessSignal = currentSignal === "done" || currentSignal === "pr_created";
+          const outcome = isSuccessSignal ? "completed" : "failed";
+          this.config.throughputTracker.record(outcome, durationMs);
+          recorded = true;
+        }
         break;
+      }
+
+      // Aborted mid-flight — record as failed so throughput stats account for it
+      if (this.signal.aborted && this.config.throughputTracker && !recorded) {
+        this.config.throughputTracker.record("failed", Date.now() - startTime);
       }
     } finally {
       try {
