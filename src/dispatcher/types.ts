@@ -12,6 +12,49 @@ export interface DispatchOpts {
   templateContext?: Record<string, unknown> | null;
 }
 
-export interface Dispatcher {
+// ---------------------------------------------------------------------------
+// Nuke event shapes — mirror the SSE events emitted by the nuke container
+// ---------------------------------------------------------------------------
+
+export interface NukeSystemEvent {
+  type: "system";
+  subtype: string;
+}
+
+export interface NukeToolUseEvent {
+  type: "tool_use";
+  name: string;
+  input: Record<string, unknown>;
+}
+
+export interface NukeTextEvent {
+  type: "text";
+  text: string;
+}
+
+export interface NukeResultEvent {
+  type: "result";
+  subtype: string;
+  isError: boolean;
+  stopReason: string | null;
+  costUsd: number | null;
+}
+
+export type NukeEvent = NukeSystemEvent | NukeToolUseEvent | NukeTextEvent | NukeResultEvent;
+
+// ---------------------------------------------------------------------------
+// Interfaces
+// ---------------------------------------------------------------------------
+
+/** Consumes an agent event stream. */
+export interface INukeEventEmitter {
+  events(): AsyncIterable<NukeEvent>;
+}
+
+/** The contract the run loop depends on for dispatching work. */
+export interface INukeDispatcher {
   dispatch(prompt: string, opts: DispatchOpts): Promise<WorkerResult>;
 }
+
+/** @deprecated Use INukeDispatcher */
+export type Dispatcher = INukeDispatcher;
