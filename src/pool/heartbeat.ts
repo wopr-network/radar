@@ -1,4 +1,4 @@
-import type { WorkerRepo } from "../db/repos/worker-repo.js";
+import type { IWorkerRepo } from "../api/types.js";
 import { logger } from "../logger.js";
 
 export interface HeartbeatReaperConfig {
@@ -14,12 +14,12 @@ export const DEFAULT_HEARTBEAT_REAPER_CONFIG: HeartbeatReaperConfig = {
 };
 
 export class HeartbeatReaper {
-  private repo: WorkerRepo;
+  private repo: IWorkerRepo;
   private config: HeartbeatReaperConfig;
   private timer: ReturnType<typeof setInterval> | null = null;
   private checking = false;
 
-  constructor(repo: WorkerRepo, config: HeartbeatReaperConfig) {
+  constructor(repo: IWorkerRepo, config: HeartbeatReaperConfig) {
     this.repo = repo;
     this.config = config;
   }
@@ -29,11 +29,9 @@ export class HeartbeatReaper {
     this.timer = setInterval(() => {
       if (this.checking) return;
       this.checking = true;
-      try {
-        this.reap();
-      } finally {
+      this.reap().finally(() => {
         this.checking = false;
-      }
+      });
     }, this.config.checkIntervalMs);
   }
 
@@ -44,13 +42,13 @@ export class HeartbeatReaper {
     }
   }
 
-  private reap(): void {
+  private async reap(): Promise<void> {
     const cutoff = Math.floor(Date.now() / 1000) - this.config.staleThresholdSec;
-    const stale = this.repo.findStale(cutoff);
+    const stale = await this.repo.findStale(cutoff);
 
     for (const worker of stale) {
       try {
-        void this.repo.setStatus(worker.id, "offline");
+        await this.repo.setStatus(worker.id, "offline");
         logger.warn("[heartbeat-reaper] worker marked offline", {
           workerId: worker.id,
           name: worker.name,

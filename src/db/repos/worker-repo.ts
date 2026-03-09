@@ -88,7 +88,7 @@ export class WorkerRepo implements IWorkerRepo {
     return this.db.select().from(workers).where(eq(workers.status, status)).all().map(toRow);
   }
 
-  findStale(cutoffEpochSec: number): WorkerRow[] {
+  async findStale(cutoffEpochSec: number): Promise<WorkerRow[]> {
     return this.db
       .select()
       .from(workers)
