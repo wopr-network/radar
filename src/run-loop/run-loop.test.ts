@@ -9,9 +9,9 @@ function makeActivityRepo(summary: string): IEntityActivityRepo {
   return {
     insert: vi
       .fn()
-      .mockReturnValue({ id: "x", entityId: "e1", slotId: "s1", seq: 0, type: "start", data: {}, createdAt: 0 }),
-    getByEntity: vi.fn().mockReturnValue([]),
-    getSummary: vi.fn().mockReturnValue(summary),
+      .mockResolvedValue({ id: "x", entityId: "e1", slotId: "s1", seq: 0, type: "start", data: {}, createdAt: 0 }),
+    getByEntity: vi.fn().mockResolvedValue([]),
+    getSummary: vi.fn().mockResolvedValue(summary),
     deleteByEntity: vi.fn(),
   };
 }
