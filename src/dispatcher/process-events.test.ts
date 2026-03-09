@@ -72,6 +72,24 @@ describe("processEvents", () => {
     expect(result.exitCode).toBe(-1);
   });
 
+  it("merges artifacts from ARTIFACTS HTML comment into result", async () => {
+    const repo = makeRepo();
+    const result = await processEvents(
+      makeEmitter([
+        { type: "text", text: '<!-- ARTIFACTS: {"reviewCommentId":"cmt-99"} -->' },
+        { type: "text", text: "ISSUES: https://github.com/org/repo/pull/7 — stale import; missing test" },
+        { type: "result", subtype: "success", isError: false, stopReason: "end_turn", costUsd: 0 },
+      ]),
+      "e1",
+      "s1",
+      repo,
+    );
+    expect(result.signal).toBe("issues");
+    expect(result.artifacts.url).toBe("https://github.com/org/repo/pull/7");
+    expect(result.artifacts.reviewFindings).toEqual(["stale import", "missing test"]);
+    expect(result.artifacts.reviewCommentId).toBe("cmt-99");
+  });
+
   it("continues processing after repo insert failure", async () => {
     const repo = makeRepo();
     vi.mocked(repo.insert).mockRejectedValueOnce(new Error("db down"));

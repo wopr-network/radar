@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseSignal } from "./parse-signal.js";
+import { parseArtifacts, parseSignal } from "./parse-signal.js";
 
 describe("parseSignal", () => {
   it("extracts spec_ready signal", () => {
@@ -101,5 +101,40 @@ describe("parseSignal", () => {
     const output = "Spec ready: WOP-100\nMerged: https://github.com/org/repo/pull/5";
     const result = parseSignal(output);
     expect(result.signal).toBe("merged");
+  });
+});
+
+describe("parseArtifacts", () => {
+  it("extracts artifacts from HTML comment block", () => {
+    const output = [
+      "Some preamble text",
+      '<!-- ARTIFACTS: {"reviewCommentId":"abc-123","reviewFindings":["unused import"]} -->',
+      "ISSUES: https://github.com/org/repo/pull/5 — unused import",
+    ].join("\n");
+    const result = parseArtifacts(output);
+    expect(result).toEqual({
+      reviewCommentId: "abc-123",
+      reviewFindings: ["unused import"],
+    });
+  });
+
+  it("returns empty object when no artifacts block present", () => {
+    const output = "PR created: https://github.com/org/repo/pull/5";
+    expect(parseArtifacts(output)).toEqual({});
+  });
+
+  it("returns empty object when JSON is malformed", () => {
+    const output = "<!-- ARTIFACTS: {bad json} -->";
+    expect(parseArtifacts(output)).toEqual({});
+  });
+
+  it("picks the last artifacts block when multiple are present", () => {
+    const output = ['<!-- ARTIFACTS: {"a":1} -->', '<!-- ARTIFACTS: {"b":2} -->'].join("\n");
+    expect(parseArtifacts(output)).toEqual({ b: 2 });
+  });
+
+  it("handles whitespace around the JSON", () => {
+    const output = '<!-- ARTIFACTS:   {"key": "value"}   -->';
+    expect(parseArtifacts(output)).toEqual({ key: "value" });
   });
 });
