@@ -1,8 +1,24 @@
 import type { IEntityActivityRepo } from "../db/repos/i-entity-activity-repo.js";
+import type { RegisterWorkerInput, WorkerRow } from "../db/repos/worker-repo.js";
 import type { DefconClient } from "../defcon/index.js";
 import type { IngestEvent } from "../ingestion/types.js";
 import type { Pool } from "../pool/index.js";
 import type { SourceAdapterRegistry } from "../sources/adapter.js";
+
+export type { WorkerRow, RegisterWorkerInput };
+
+export interface IWorkerRepo {
+  register(input: RegisterWorkerInput): Promise<WorkerRow>;
+  deregister(id: string): Promise<void>;
+  heartbeat(id: string): Promise<void>;
+  setStatus(id: string, status: string): Promise<void>;
+  getById(id: string): Promise<WorkerRow | undefined>;
+  list(): Promise<WorkerRow[]>;
+  listByStatus(status: string): Promise<WorkerRow[]>;
+}
+
+/** @deprecated Use IWorkerRepo instead */
+export type WorkerRepo = IWorkerRepo;
 
 export interface RouteParams {
   [key: string]: string;
@@ -34,7 +50,7 @@ export interface AppDeps {
   sourceRepo: SourceRepo;
   watchRepo: WatchRepo;
   eventLogRepo: EventLogRepo;
-  workerRepo: WorkerRepo;
+  workerRepo: IWorkerRepo;
   activityRepo: IEntityActivityRepo;
   pool: Pool;
   defconClient: DefconClient;
@@ -61,13 +77,6 @@ export interface WatchRepo {
 export interface EventLogRepo {
   findAll(opts?: { limit?: number; offset?: number }): Promise<EventLogEntry[]>;
   append(data: Omit<EventLogEntry, "id" | "created_at">): Promise<EventLogEntry>;
-}
-
-export interface WorkerRepo {
-  findAll(): Promise<Worker[]>;
-  findById(id: string): Promise<Worker | undefined>;
-  create(data: Omit<Worker, "id" | "created_at">): Promise<Worker>;
-  delete(id: string): Promise<boolean>;
 }
 
 export interface Source {
@@ -99,16 +108,5 @@ export interface EventLogEntry {
   raw_event: unknown;
   action_taken: string | null;
   defcon_response: unknown;
-  created_at: number;
-}
-
-export interface Worker {
-  id: string;
-  name: string;
-  type: string;
-  discipline: string;
-  status: string;
-  config: Record<string, unknown> | null;
-  last_heartbeat: number;
   created_at: number;
 }

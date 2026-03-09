@@ -35,22 +35,51 @@ export class RunLoop {
   private abortController: AbortController | null = null;
   private slotPromises: Map<string, Promise<void>> = new Map();
   private pendingClaims = 0;
+  private registeredWorkerId: string | null = null;
 
   constructor(config: RunLoopConfig) {
     this.config = config;
     this.pollIntervalMs = config.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS;
   }
 
-  start(): void {
+  async start(): Promise<void> {
     if (this.abortController) throw new Error("RunLoop already started");
     this.abortController = new AbortController();
-    const { pool } = this.config;
+    const { pool, workerRepo } = this.config;
+
+    // Register worker in DB if repo provided
+    let workerIdForSlots = `${this.config.workerIdPrefix ?? "wkr"}-${randomUUID().slice(0, 8)}`;
+    try {
+      if (workerRepo) {
+        const hostname = globalThis.process?.env?.HOSTNAME ?? "unknown";
+        const pid = globalThis.process?.pid ?? 0;
+        const worker = await workerRepo.register({
+          name: `${this.config.workerIdPrefix ?? "wkr"}-${hostname}-${pid}`,
+          type: this.config.workerType ?? "unknown",
+          discipline: this.config.workerDiscipline ?? this.config.role,
+        });
+        this.registeredWorkerId = worker.id;
+        workerIdForSlots = worker.id;
+
+        // Heartbeat once per process per interval (not per slot per cycle)
+        const heartbeatTimer = setInterval(() => {
+          if (this.registeredWorkerId && this.config.workerRepo) {
+            void this.config.workerRepo.heartbeat(this.registeredWorkerId).catch(() => {
+              // Non-fatal — heartbeat failure shouldn't crash the loop
+            });
+          }
+        }, this.pollIntervalMs);
+        this.abortController.signal.addEventListener("abort", () => clearInterval(heartbeatTimer), { once: true });
+      }
+    } catch (err) {
+      this.abortController = null;
+      throw err;
+    }
 
     const capacity = pool.availableSlots();
     for (let i = 0; i < capacity; i++) {
       const slotId = `slot-${i}`;
-      const workerId = `${this.config.workerIdPrefix ?? "wkr"}-${randomUUID().slice(0, 8)}`;
-      const promise = this.runSlot(slotId, workerId);
+      const promise = this.runSlot(slotId, workerIdForSlots);
       this.slotPromises.set(slotId, promise);
     }
   }
@@ -79,6 +108,16 @@ export class RunLoop {
     }
     // Force-timeout path: slots are still running but aborted; null controller now
     // so this.signal getter returns a pre-aborted signal for any in-flight code.
+
+    // Deregister worker from DB
+    if (this.registeredWorkerId && this.config.workerRepo) {
+      try {
+        await this.config.workerRepo.deregister(this.registeredWorkerId);
+      } catch {
+        // Best-effort deregister — ungraceful shutdown handled by WOP-1874 reaper
+      }
+      this.registeredWorkerId = null;
+    }
 
     this.slotPromises.clear();
     this.abortController = null;
