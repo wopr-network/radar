@@ -166,4 +166,20 @@ describe("SdkDispatcher", () => {
       expect.objectContaining({ options: expect.objectContaining({ model: "claude-opus-4-6" }) }),
     );
   });
+
+  it("dispatches prompt as-is (history injection is run-loop's responsibility)", async () => {
+    const repo = makeRepo();
+    mockQuery.mockReturnValue(
+      makeStream([
+        { type: "result", subtype: "success", is_error: false, total_cost_usd: 0, stop_reason: "end_turn" },
+      ]) as ReturnType<typeof query>,
+    );
+
+    const dispatcher = new SdkDispatcher(repo);
+    await dispatcher.dispatch("new task", { entityId: "e1", workerId: "slot-2", modelTier: "haiku" });
+
+    expect(repo.getSummary).not.toHaveBeenCalled();
+    const promptArg = mockQuery.mock.lastCall?.[0] as { prompt: string } | undefined;
+    expect(promptArg?.prompt).toContain("new task");
+  });
 });

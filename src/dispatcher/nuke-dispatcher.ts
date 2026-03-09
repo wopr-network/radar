@@ -319,6 +319,8 @@ export class NukeDispatcher implements Dispatcher {
 
   /** Stop all running containers (shutdown hook). */
   async stopAll(): Promise<void> {
+    // Drain in-flight launches first to avoid orphaning containers
+    await Promise.allSettled([...inFlight.values()]);
     const ids = [...containers.keys()];
     await Promise.all(ids.map((id) => stopContainer(id)));
   }

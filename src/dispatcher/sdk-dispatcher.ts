@@ -70,6 +70,8 @@ export class SdkDispatcher implements INukeDispatcher {
           agentMd = rawAgentMd;
         }
       }
+      // History injection is handled by the run-loop before calling dispatch().
+      // SdkDispatcher dispatches with whatever prompt it receives.
       const fullPrompt = agentMd ? `${agentMd}\n\n---\n\n${prompt}` : prompt;
 
       logger.info(`[claude] [${slotId}] START`, {

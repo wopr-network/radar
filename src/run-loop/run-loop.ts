@@ -293,7 +293,7 @@ export class RunLoop {
               activityHistory = activityHistory.trim();
               const MAX_HISTORY_CHARS = 8000;
               if (activityHistory.length > MAX_HISTORY_CHARS) {
-                activityHistory = `${activityHistory.slice(0, MAX_HISTORY_CHARS)}\n\n[...history truncated]`;
+                activityHistory = `[...history truncated]\n\n${activityHistory.slice(-MAX_HISTORY_CHARS)}`;
               }
             }
           } catch (err) {
