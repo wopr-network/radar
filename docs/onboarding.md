@@ -192,24 +192,20 @@ Common causes: expired credentials (see above), prompt template error, or hittin
 
 ---
 
-## How claude Signals Back to DEFCON
+## How Agents Signal Back to DEFCON
 
-RADAR's dispatcher captures claude's stdout after the process exits. It scans the last 200 lines for a signal in this format:
-
-```
-Signal: spec_ready
-Artifacts: {"prUrl": "https://github.com/..."}
-```
-
-The `parseSignal` function extracts the signal name and any JSON artifacts. The signal is then forwarded to DEFCON via `/api/report`, which advances the entity through the flow's gate.
-
-Agent prompts must end with a send-to-team-lead message containing the signal. Example from the architecting state:
+RADAR's dispatcher extracts a signal from agent output by scanning the last 200 lines **from the bottom up**. Signals are phrases the agent emits on their own line:
 
 ```
-Then send to team-lead: "Spec ready: {{entity.refs.linear.key}}"
+PR created: https://github.com/wopr-network/wopr/pull/456
 ```
 
-RADAR's signal parser recognizes common patterns (`spec_ready`, `pr_created`, `clean`, `issues`, `crash`, etc.).
+The `parseSignal` function extracts the signal name and artifacts (e.g. `prUrl`, `prNumber`). RADAR forwards the signal to DEFCON via `/api/report`, which advances the entity through gates and transitions.
+
+Agent prompts tell the agent what signal to emit. The parser is pattern-based — it matches known phrases, nothing more.
+
+For the full signal specification, see [signal-format.md](./signal-format.md).
+For the complete dispatch architecture (NukeDispatcher, SdkDispatcher, ClaudeCodeDispatcher, SSE protocol, activity tracking), see [dispatch-architecture.md](./dispatch-architecture.md).
 
 ---
 
@@ -227,7 +223,9 @@ RADAR's signal parser recognizes common patterns (`spec_ready`, `pr_created`, `c
 
 ## Further Reading
 
+- [Dispatch Architecture](./dispatch-architecture.md) — NukeDispatcher, SdkDispatcher, SSE protocol, activity tracking, signal parsing
+- [Signal Format](./signal-format.md) — signal specification and artifact extraction
 - [DEFCON onboarding](https://github.com/wopr-network/defcon/blob/main/docs/wopr/devops/onboarding.md) — how to set up the flow engine RADAR connects to
+- [NUKE repo](https://github.com/wopr-network/nuke) — agent container definitions (per-discipline Dockerfiles)
 - [Run loop source](../src/run-loop/run-loop.ts) — the slot lifecycle in code
-- [Dispatcher source](../src/dispatcher/claude-code-dispatcher.ts) — how claude is spawned and its output parsed
 - [RADAR architecture design](./plans/2026-03-06-radar-architecture-design.md) — full system design
