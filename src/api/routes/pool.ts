@@ -1,7 +1,39 @@
 import type { Pool } from "../../pool/pool.js";
+import type { ThroughputTracker } from "../../pool/throughput-tracker.js";
 import type { Router } from "../router.js";
 
-export function registerPoolRoutes(router: Router, pool: Pool, onClaim: () => Promise<unknown>): void {
+export function registerPoolRoutes(
+  router: Router,
+  pool: Pool,
+  onClaim: () => Promise<unknown>,
+  throughputTracker: ThroughputTracker,
+): void {
+  router.add("GET", "/api/pool/status", async () => {
+    const slots = pool.activeSlots();
+    const available = pool.availableSlots();
+    const capacity = pool.getCapacity();
+    const throughput = throughputTracker.getStats();
+
+    return {
+      status: 200,
+      body: {
+        workers: {
+          active: slots.length,
+          total_capacity: capacity,
+          available_slots: available,
+        },
+        slots: slots.map((s) => ({
+          slotId: s.slotId,
+          workerId: s.workerId,
+          discipline: s.discipline,
+          status: s.state,
+          currentEntityId: s.entityId,
+        })),
+        throughput,
+      },
+    };
+  });
+
   router.add("GET", "/api/pool/slots", async () => {
     const slots = pool.activeSlots();
     const available = pool.availableSlots();

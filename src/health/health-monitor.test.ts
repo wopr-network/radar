@@ -29,7 +29,7 @@ describe("HealthMonitor", () => {
     const { client, reportFn } = makeDefconClient();
     const monitor = new HealthMonitor(pool, client, FAST_CONFIG);
 
-    pool.allocate("s1", "w1", "e1", "do stuff");
+    pool.allocate("s1", "w1", "engineering", "e1", "do stuff");
 
     monitor.start();
     await vi.advanceTimersByTimeAsync(FAST_CONFIG.heartbeatIntervalMs + 10);
@@ -44,7 +44,7 @@ describe("HealthMonitor", () => {
     const { client, reportFn } = makeDefconClient();
     const monitor = new HealthMonitor(pool, client, FAST_CONFIG);
 
-    pool.allocate("s1", "w1", "e1", "do stuff");
+    pool.allocate("s1", "w1", "engineering", "e1", "do stuff");
 
     // Simulate time passing beyond threshold
     vi.advanceTimersByTime(FAST_CONFIG.deadWorkerThresholdMs + 50);
@@ -70,7 +70,7 @@ describe("HealthMonitor", () => {
     const { client, reportFn } = makeDefconClient();
     const monitor = new HealthMonitor(pool, client, FAST_CONFIG);
 
-    pool.allocate("s1", "w1", "e1", "do stuff");
+    pool.allocate("s1", "w1", "engineering", "e1", "do stuff");
     pool.complete("s1", { signal: "done", artifacts: {}, exitCode: 0 });
 
     // Make heartbeat stale
@@ -90,7 +90,7 @@ describe("HealthMonitor", () => {
     const { client, reportFn } = makeDefconClient();
     const monitor = new HealthMonitor(pool, client, FAST_CONFIG);
 
-    pool.allocate("s1", "w1", "e1", "do stuff");
+    pool.allocate("s1", "w1", "engineering", "e1", "do stuff");
     const slot = pool.activeSlots()[0];
     slot.entityId = null;
     slot.lastHeartbeat = Date.now() - FAST_CONFIG.deadWorkerThresholdMs - 1;
@@ -109,7 +109,7 @@ describe("HealthMonitor", () => {
     reportFn.mockRejectedValueOnce(new Error("network down"));
     const monitor = new HealthMonitor(pool, client, FAST_CONFIG);
 
-    pool.allocate("s1", "w1", "e1", "do stuff");
+    pool.allocate("s1", "w1", "engineering", "e1", "do stuff");
     const slot = pool.activeSlots()[0];
     slot.lastHeartbeat = Date.now() - FAST_CONFIG.deadWorkerThresholdMs - 1;
 
@@ -133,7 +133,7 @@ describe("HealthMonitor", () => {
     const client = { report: reportFn } as unknown as DefconClient;
     const monitor = new HealthMonitor(pool, client, FAST_CONFIG);
 
-    pool.allocate("s1", "w1", "e1", "do stuff");
+    pool.allocate("s1", "w1", "engineering", "e1", "do stuff");
     const slot = pool.activeSlots()[0];
     // Make slot appear stale
     slot.lastHeartbeat = Date.now() - FAST_CONFIG.deadWorkerThresholdMs - 1;

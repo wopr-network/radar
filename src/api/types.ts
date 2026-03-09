@@ -3,6 +3,7 @@ import type { RegisterWorkerInput, WorkerRow } from "../db/repos/worker-repo.js"
 import type { DefconClient } from "../defcon/index.js";
 import type { IngestEvent } from "../ingestion/types.js";
 import type { Pool } from "../pool/index.js";
+import type { ThroughputTracker } from "../pool/throughput-tracker.js";
 import type { SourceAdapterRegistry } from "../sources/adapter.js";
 
 export type { WorkerRow, RegisterWorkerInput };
@@ -57,6 +58,7 @@ export interface AppDeps {
   defconClient: DefconClient;
   adapterRegistry: SourceAdapterRegistry;
   onWebhook: (sourceId: string, event: IngestEvent) => Promise<void>;
+  throughputTracker: ThroughputTracker;
 }
 
 export interface SourceRepo {

@@ -9,6 +9,7 @@ export interface WorkerResult {
 export interface Slot {
   slotId: string;
   workerId: string;
+  discipline: string;
   entityId: string | null;
   state: SlotState;
   prompt: string | null;
