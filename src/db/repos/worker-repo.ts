@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq, lt, ne } from "drizzle-orm";
 import type { IWorkerRepo } from "../../api/types.js";
 import type { RadarDb } from "../index.js";
 import { workers } from "../schema.js";
@@ -86,5 +86,14 @@ export class WorkerRepo implements IWorkerRepo {
 
   async listByStatus(status: string): Promise<WorkerRow[]> {
     return this.db.select().from(workers).where(eq(workers.status, status)).all().map(toRow);
+  }
+
+  async findStale(cutoffEpochSec: number): Promise<WorkerRow[]> {
+    return this.db
+      .select()
+      .from(workers)
+      .where(and(lt(workers.lastHeartbeat, cutoffEpochSec), ne(workers.status, "offline")))
+      .all()
+      .map(toRow);
   }
 }
