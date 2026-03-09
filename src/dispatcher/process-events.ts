@@ -1,6 +1,6 @@
 import type { IEntityActivityRepo } from "../db/repos/entity-activity-repo.js";
 import { logger } from "../logger.js";
-import { parseSignal } from "./parse-signal.js";
+import { parseArtifacts, parseSignal } from "./parse-signal.js";
 import type { INukeEventEmitter, WorkerResult } from "./types.js";
 
 async function safeInsert(
@@ -66,7 +66,10 @@ export async function processEvents(
         return { signal: "crash", artifacts: {}, exitCode: 1 };
       }
 
-      const { signal, artifacts } = parseSignal(allTextBlocks.join("\n"));
+      const fullOutput = allTextBlocks.join("\n");
+      const { signal, artifacts: signalArtifacts } = parseSignal(fullOutput);
+      const blockArtifacts = parseArtifacts(fullOutput);
+      const artifacts = { ...blockArtifacts, ...signalArtifacts };
       logger.info(`[claude] [${slotId}] parsed signal`, { signal });
       return { signal, artifacts, exitCode: 0 };
     }

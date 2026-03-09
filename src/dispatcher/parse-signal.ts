@@ -63,6 +63,27 @@ const SIGNAL_PATTERNS: SignalPattern[] = [
   },
 ];
 
+const ARTIFACTS_PATTERN = /<!--\s*ARTIFACTS:\s*(\{.*\})\s*-->/;
+
+export function parseArtifacts(output: string): Record<string, unknown> {
+  const lines = output.split("\n").reverse();
+  for (const line of lines) {
+    const match = line.match(ARTIFACTS_PATTERN);
+    if (match) {
+      try {
+        const parsed = JSON.parse(match[1]);
+        if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
+          return parsed as Record<string, unknown>;
+        }
+      } catch {
+        // Malformed JSON — skip
+      }
+      return {};
+    }
+  }
+  return {};
+}
+
 export function parseSignal(output: string): {
   signal: string;
   artifacts: Record<string, unknown>;

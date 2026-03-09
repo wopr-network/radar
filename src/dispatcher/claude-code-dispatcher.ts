@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { parseSignal } from "./parse-signal.js";
+import { parseArtifacts, parseSignal } from "./parse-signal.js";
 import type { Dispatcher, DispatchOpts, WorkerResult } from "./types.js";
 
 const DEFAULT_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
@@ -63,7 +63,9 @@ export class ClaudeCodeDispatcher implements Dispatcher {
             const lines = stdout.split("\n");
             const tail = lines.length > MAX_SCAN_LINES ? lines.slice(-MAX_SCAN_LINES).join("\n") : stdout;
 
-            const { signal, artifacts } = parseSignal(tail);
+            const { signal, artifacts: signalArtifacts } = parseSignal(tail);
+            const blockArtifacts = parseArtifacts(tail);
+            const artifacts = { ...blockArtifacts, ...signalArtifacts };
 
             if (signal === "unknown" && exitCode !== 0) {
               settle({ signal: "crash", artifacts: {}, exitCode });
