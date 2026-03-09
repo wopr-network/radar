@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { gt, sql } from "drizzle-orm";
+import { gt, lt } from "drizzle-orm";
 import type { RadarDb } from "../index.js";
 import { throughputEvents } from "../schema.js";
 import type { IThroughputRepo, ThroughputStats } from "./i-throughput-repo.js";
@@ -39,6 +39,6 @@ export class DrizzleThroughputRepo implements IThroughputRepo {
   }
 
   pruneOlderThan(cutoff: number): void {
-    this.db.delete(throughputEvents).where(sql`created_at < ${cutoff}`).run();
+    this.db.delete(throughputEvents).where(lt(throughputEvents.createdAt, cutoff)).run();
   }
 }
