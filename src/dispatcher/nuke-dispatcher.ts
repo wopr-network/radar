@@ -287,6 +287,7 @@ export class NukeDispatcher implements Dispatcher {
             signal = "crash";
             artifacts = { error: event.message instanceof Error ? event.message.message : String(event.message ?? "SSE error") };
             exitCode = -1;
+            controller.abort();
             try {
               await reader.cancel();
             } catch {
