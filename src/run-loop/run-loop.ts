@@ -205,6 +205,20 @@ export class RunLoop {
     // Look up dispatch config from local flow cache
     const { flowCache } = this.config;
     const stateConfig = claimFlow ? flowCache.getStateConfig(claimFlow, claim.state) : null;
+
+    if (claimFlow && !stateConfig) {
+      logger.error(`[radar] flow cache miss: flow=${claimFlow} state=${claim.state} — check seed file`);
+      try {
+        await defcon.report({
+          entityId: claim.entity_id,
+          signal: "crash",
+          artifacts: { error: `Flow cache miss: flow=${claimFlow} state=${claim.state}` },
+        });
+      } catch {}
+      await sleep(this.pollIntervalMs, this.signal);
+      return;
+    }
+
     const modelTier = stateConfig?.modelTier ?? "sonnet";
     const agentRole = stateConfig?.agentRole ?? null;
     const promptTemplate = stateConfig?.promptTemplate ?? null;
@@ -214,8 +228,13 @@ export class RunLoop {
       ? flowCache.renderPrompt(promptTemplate, claim.refs, claim.artifacts)
       : `Process entity ${claim.entity_id} in state ${claim.state}`;
 
-    // Extract repo from rendered prompt (for per-repo concurrency)
-    const claimRepo = extractRepoFromDescription(renderedPrompt);
+    // Extract repo: prefer structured refs/artifacts, fall back to prompt text
+    const refsObj = (claim.refs ?? {}) as Record<string, unknown>;
+    const artifactsObj = (claim.artifacts ?? {}) as Record<string, unknown>;
+    const structuredRepo =
+      (typeof refsObj.repo === "string" ? refsObj.repo : null) ??
+      (typeof artifactsObj.repo === "string" ? artifactsObj.repo : null);
+    const claimRepo = structuredRepo ?? extractRepoFromDescription(renderedPrompt);
 
     // Concurrency gate: per-repo limit — checked BEFORE allocating a slot
     // so we skip rather than crash the entity

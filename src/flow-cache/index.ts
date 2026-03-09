@@ -48,7 +48,7 @@ export class FlowCache {
     artifacts: Record<string, unknown> | null,
   ): string {
     const context = { ...refs, ...artifacts };
-    return Handlebars.compile(template)(context);
+    return Handlebars.compile(template, { noEscape: true })(context);
   }
 
   hasFlow(flowName: string): boolean {
