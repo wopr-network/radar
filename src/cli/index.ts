@@ -24,6 +24,7 @@ export function buildProgram(): Command {
     .option("--max-concurrent-per-repo <n>", "Max concurrent entities per repo", (v: string) => Number.parseInt(v, 10))
     .option("--worker <type>", "Worker type identifier")
     .option("--dummy", "Use dummy dispatcher (no Claude API calls, for testing)")
+    .option("--agents-dir <path>", "Directory containing agent MD files", process.env.RADAR_AGENTS_DIR)
     .option("--seed <path>", "Seed file path")
     .option("--defcon-url <url>", "DEFCON server URL", "http://localhost:3000")
     .option("--worker-token <token>", "DEFCON worker token for claiming work", process.env.DEFCON_WORKER_TOKEN)
@@ -170,7 +171,7 @@ export function buildProgram(): Command {
 
       const dispatcher = opts.dummy
         ? new (await import("../dispatcher/dummy-dispatcher.js")).DummyDispatcher(activityRepo)
-        : new SdkDispatcher(activityRepo);
+        : new SdkDispatcher(activityRepo, opts.agentsDir as string | undefined);
 
       // Adapters: bridge drizzle repo method names to AppDeps interface
       const sourceRepo = {

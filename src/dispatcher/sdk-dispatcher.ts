@@ -1,9 +1,13 @@
+import { readFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
 import { query } from "@anthropic-ai/claude-agent-sdk";
 import type { IEntityActivityRepo } from "../db/repos/entity-activity-repo.js";
 import { parseSignal } from "./parse-signal.js";
 import type { Dispatcher, DispatchOpts, WorkerResult } from "./types.js";
 
 const DEFAULT_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
+const DEFAULT_AGENTS_DIR = join(homedir(), ".claude", "agents");
 
 const MODEL_MAP: Record<DispatchOpts["modelTier"], string> = {
   opus: "claude-opus-4-6",
@@ -23,11 +27,26 @@ async function safeInsert(
   }
 }
 
+function loadAgentMd(agentsDir: string, agentRole: string): string | null {
+  try {
+    return readFileSync(join(agentsDir, `${agentRole}.md`), "utf-8");
+  } catch {
+    return null;
+  }
+}
+
 export class SdkDispatcher implements Dispatcher {
-  constructor(private activityRepo: IEntityActivityRepo) {}
+  private agentsDir: string;
+
+  constructor(
+    private activityRepo: IEntityActivityRepo,
+    agentsDir?: string,
+  ) {
+    this.agentsDir = agentsDir ?? DEFAULT_AGENTS_DIR;
+  }
 
   async dispatch(prompt: string, opts: DispatchOpts): Promise<WorkerResult> {
-    const { entityId, workerId: slotId, modelTier, timeout = DEFAULT_TIMEOUT_MS } = opts;
+    const { entityId, workerId: slotId, modelTier, agentRole, timeout = DEFAULT_TIMEOUT_MS } = opts;
 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeout);
@@ -35,7 +54,12 @@ export class SdkDispatcher implements Dispatcher {
     const allTextBlocks: string[] = [];
 
     try {
-      console.log(`[claude] [${slotId}] START entity=${entityId} model=${MODEL_MAP[modelTier]}`);
+      const agentMd = agentRole ? loadAgentMd(this.agentsDir, agentRole) : null;
+      const fullPrompt = agentMd ? `${agentMd}\n\n---\n\n${prompt}` : prompt;
+
+      console.log(
+        `[claude] [${slotId}] START entity=${entityId} model=${MODEL_MAP[modelTier]}${agentRole ? ` agentRole=${agentRole}` : ""}`,
+      );
       await safeInsert(this.activityRepo, { entityId, slotId, type: "start", data: {} }, slotId);
 
       // Strip CLAUDECODE env var so the claude subprocess doesn't refuse to start
@@ -68,7 +92,7 @@ export class SdkDispatcher implements Dispatcher {
         : undefined;
 
       for await (const message of query({
-        prompt,
+        prompt: fullPrompt,
         options: {
           abortController: controller,
           model: MODEL_MAP[modelTier],

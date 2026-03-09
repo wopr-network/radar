@@ -72,7 +72,7 @@ export const SeedFlowSchema = z
 
 export const SeedFileSchema = z
   .object({
-    flows: z.array(SeedFlowSchema).min(1),
+    flows: z.array(SeedFlowSchema).default([]),
     sources: z.array(SeedSourceSchema).default([]),
     watches: z.array(SeedWatchSchema).default([]),
   })
