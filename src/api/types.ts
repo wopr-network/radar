@@ -8,13 +8,13 @@ import type { SourceAdapterRegistry } from "../sources/adapter.js";
 export type { WorkerRow, RegisterWorkerInput };
 
 export interface IWorkerRepo {
-  register(input: RegisterWorkerInput): WorkerRow;
-  deregister(id: string): void;
-  heartbeat(id: string): void;
-  setStatus(id: string, status: string): void;
-  getById(id: string): WorkerRow | undefined;
-  list(): WorkerRow[];
-  listByStatus(status: string): WorkerRow[];
+  register(input: RegisterWorkerInput): Promise<WorkerRow>;
+  deregister(id: string): Promise<void>;
+  heartbeat(id: string): Promise<void>;
+  setStatus(id: string, status: string): Promise<void>;
+  getById(id: string): Promise<WorkerRow | undefined>;
+  list(): Promise<WorkerRow[]>;
+  listByStatus(status: string): Promise<WorkerRow[]>;
 }
 
 /** @deprecated Use IWorkerRepo instead */

@@ -22,13 +22,13 @@ function makeWorkerRow(overrides: Partial<WorkerRow> = {}): WorkerRow {
 function makeWorkerRepo(id = "worker-1"): IWorkerRepo {
   const row = makeWorkerRow({ id });
   return {
-    register: vi.fn().mockReturnValue(row),
-    deregister: vi.fn().mockReturnValue(undefined),
-    heartbeat: vi.fn().mockReturnValue(undefined),
-    setStatus: vi.fn().mockReturnValue(undefined),
-    getById: vi.fn().mockReturnValue(row),
-    list: vi.fn().mockReturnValue([row]),
-    listByStatus: vi.fn().mockReturnValue([]),
+    register: vi.fn().mockResolvedValue(row),
+    deregister: vi.fn().mockResolvedValue(undefined),
+    heartbeat: vi.fn().mockResolvedValue(undefined),
+    setStatus: vi.fn().mockResolvedValue(undefined),
+    getById: vi.fn().mockResolvedValue(row),
+    list: vi.fn().mockResolvedValue([row]),
+    listByStatus: vi.fn().mockResolvedValue([]),
   } as unknown as IWorkerRepo;
 }
 
@@ -110,9 +110,7 @@ describe("RunLoop — worker registration lifecycle", () => {
 
   it("does not crash if workerRepo.deregister throws on stop", async () => {
     const workerRepo = makeWorkerRepo();
-    (workerRepo.deregister as ReturnType<typeof vi.fn>).mockImplementation(() => {
-      throw new Error("db error");
-    });
+    (workerRepo.deregister as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("db error"));
     const loop = new RunLoop(makeConfig({ workerRepo }));
     await loop.start();
     await expect(loop.stop()).resolves.toBeUndefined();
@@ -121,9 +119,7 @@ describe("RunLoop — worker registration lifecycle", () => {
   it("does not crash if workerRepo.heartbeat throws", async () => {
     vi.useFakeTimers();
     const workerRepo = makeWorkerRepo("w-hb2");
-    (workerRepo.heartbeat as ReturnType<typeof vi.fn>).mockImplementation(() => {
-      throw new Error("heartbeat error");
-    });
+    (workerRepo.heartbeat as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("heartbeat error"));
 
     const loop = new RunLoop(makeConfig({ workerRepo, pollIntervalMs: 100 }));
     await loop.start();

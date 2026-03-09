@@ -37,7 +37,7 @@ function toRow(raw: typeof workers.$inferSelect): WorkerRow {
 export class WorkerRepo implements IWorkerRepo {
   constructor(private db: RadarDb) {}
 
-  register(input: RegisterWorkerInput): WorkerRow {
+  async register(input: RegisterWorkerInput): Promise<WorkerRow> {
     const id = crypto.randomUUID();
     const now = Math.floor(Date.now() / 1000);
     this.db
@@ -58,33 +58,33 @@ export class WorkerRepo implements IWorkerRepo {
     return toRow(row);
   }
 
-  deregister(id: string): void {
+  async deregister(id: string): Promise<void> {
     this.db.delete(workers).where(eq(workers.id, id)).run();
   }
 
-  heartbeat(id: string): void {
+  async heartbeat(id: string): Promise<void> {
     const now = Math.floor(Date.now() / 1000);
     const row = this.db.select().from(workers).where(eq(workers.id, id)).get();
     if (!row) throw new Error(`Unknown worker: ${id}`);
     this.db.update(workers).set({ lastHeartbeat: now }).where(eq(workers.id, id)).run();
   }
 
-  setStatus(id: string, status: string): void {
+  async setStatus(id: string, status: string): Promise<void> {
     const row = this.db.select().from(workers).where(eq(workers.id, id)).get();
     if (!row) throw new Error(`Worker ${id} not found`);
     this.db.update(workers).set({ status }).where(eq(workers.id, id)).run();
   }
 
-  getById(id: string): WorkerRow | undefined {
+  async getById(id: string): Promise<WorkerRow | undefined> {
     const row = this.db.select().from(workers).where(eq(workers.id, id)).get();
     return row ? toRow(row) : undefined;
   }
 
-  list(): WorkerRow[] {
+  async list(): Promise<WorkerRow[]> {
     return this.db.select().from(workers).all().map(toRow);
   }
 
-  listByStatus(status: string): WorkerRow[] {
+  async listByStatus(status: string): Promise<WorkerRow[]> {
     return this.db.select().from(workers).where(eq(workers.status, status)).all().map(toRow);
   }
 }

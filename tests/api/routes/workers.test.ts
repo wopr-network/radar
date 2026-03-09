@@ -16,13 +16,13 @@ function makeWorkerRepo(): WorkerRepo & { _data: Map<string, WorkerRow>; create(
       _data.set(worker.id, worker);
       return worker;
     },
-    list(): WorkerRow[] {
+    async list(): Promise<WorkerRow[]> {
       return Array.from(_data.values());
     },
-    getById(id: string): WorkerRow | undefined {
+    async getById(id: string): Promise<WorkerRow | undefined> {
       return _data.get(id);
     },
-    register(input: RegisterWorkerInput): WorkerRow {
+    async register(input: RegisterWorkerInput): Promise<WorkerRow> {
       const worker: WorkerRow = {
         id: crypto.randomUUID(),
         name: input.name,
@@ -36,18 +36,18 @@ function makeWorkerRepo(): WorkerRepo & { _data: Map<string, WorkerRow>; create(
       _data.set(worker.id, worker);
       return worker;
     },
-    deregister(id: string): void {
+    async deregister(id: string): Promise<void> {
       _data.delete(id);
     },
-    heartbeat(id: string): void {
+    async heartbeat(id: string): Promise<void> {
       const w = _data.get(id);
       if (w) w.lastHeartbeat = Date.now();
     },
-    setStatus(id: string, status: string): void {
+    async setStatus(id: string, status: string): Promise<void> {
       const w = _data.get(id);
       if (w) w.status = status;
     },
-    listByStatus(status: string): WorkerRow[] {
+    async listByStatus(status: string): Promise<WorkerRow[]> {
       return Array.from(_data.values()).filter((w) => w.status === status);
     },
   };
