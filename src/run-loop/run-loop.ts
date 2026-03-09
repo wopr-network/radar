@@ -330,8 +330,8 @@ export class RunLoop {
         // "waiting" — release slot
         if (this.config.throughputTracker) {
           const durationMs = Date.now() - startTime;
-          const isSuccessSignal = currentSignal === "done" || currentSignal === "pr_created";
-          const outcome = isSuccessSignal ? "completed" : "failed";
+          const FAILURE_SIGNALS = new Set(["crash", "timeout", "unknown", "cant_resolve"]);
+          const outcome = currentSignal && !FAILURE_SIGNALS.has(currentSignal) ? "completed" : "failed";
           this.config.throughputTracker.record(outcome, durationMs);
           recorded = true;
         }
