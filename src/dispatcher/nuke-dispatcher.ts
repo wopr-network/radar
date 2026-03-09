@@ -285,7 +285,9 @@ export class NukeDispatcher implements Dispatcher {
           } else if (event.type === "error") {
             logger.error(`[nuke] container error`, { entityId, message: event.message });
             signal = "crash";
-            artifacts = { error: event.message instanceof Error ? event.message.message : String(event.message ?? "SSE error") };
+            artifacts = {
+              error: event.message instanceof Error ? event.message.message : String(event.message ?? "SSE error"),
+            };
             exitCode = -1;
             controller.abort();
             try {
