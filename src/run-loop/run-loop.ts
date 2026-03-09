@@ -249,6 +249,7 @@ export class RunLoop {
       let currentSignal: string | undefined;
       let currentArtifacts: Record<string, unknown> | undefined;
       const startTime = Date.now();
+      let recorded = false;
 
       while (!this.signal.aborted) {
         if (currentSignal === undefined) {
@@ -329,14 +330,16 @@ export class RunLoop {
         // "waiting" — release slot
         if (this.config.throughputTracker) {
           const durationMs = Date.now() - startTime;
-          const outcome = currentSignal === "crash" || currentSignal === undefined ? "failed" : "completed";
+          const isSuccessSignal = currentSignal === "done" || currentSignal === "pr_created";
+          const outcome = isSuccessSignal ? "completed" : "failed";
           this.config.throughputTracker.record(outcome, durationMs);
+          recorded = true;
         }
         break;
       }
 
       // Aborted mid-flight — record as failed so throughput stats account for it
-      if (this.signal.aborted && this.config.throughputTracker) {
+      if (this.signal.aborted && this.config.throughputTracker && !recorded) {
         this.config.throughputTracker.record("failed", Date.now() - startTime);
       }
     } finally {
