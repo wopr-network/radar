@@ -138,7 +138,8 @@ describe("loadSeed", () => {
   });
 
   it("throws descriptive error on invalid seed file", async () => {
-    const seedPath = tmpSeed(JSON.stringify({ flows: [] }));
+    // sources must be an array when provided — this is genuinely invalid
+    const seedPath = tmpSeed(JSON.stringify({ sources: "not-an-array" }));
 
     await expect(loadSeed(seedPath, { defconUrl: "http://localhost:3000", db })).rejects.toThrow();
   });

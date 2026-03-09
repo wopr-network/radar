@@ -131,15 +131,19 @@ export const SeedFileSchema = z
         });
       }
     }
-    const flowNames = new Set(seed.flows.map((f) => f.name));
-    for (let i = 0; i < seed.watches.length; i++) {
-      const w = seed.watches[i];
-      if (!flowNames.has(w.flowName)) {
-        ctx.addIssue({
-          code: "custom",
-          message: `Watch "${w.id}" references unknown flow "${w.flowName}"`,
-          path: ["watches", i, "flowName"],
-        });
+    // Only validate watch→flow references when flows are defined in this file.
+    // Watches may reference flows defined externally (e.g. in defcon's seed).
+    if (seed.flows.length > 0) {
+      const flowNames = new Set(seed.flows.map((f) => f.name));
+      for (let i = 0; i < seed.watches.length; i++) {
+        const w = seed.watches[i];
+        if (!flowNames.has(w.flowName)) {
+          ctx.addIssue({
+            code: "custom",
+            message: `Watch "${w.id}" references unknown flow "${w.flowName}"`,
+            path: ["watches", i, "flowName"],
+          });
+        }
       }
     }
     for (let i = 0; i < seed.flows.length; i++) {
