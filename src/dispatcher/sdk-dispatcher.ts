@@ -41,7 +41,13 @@ function loadAgentMd(agentsDir: string, agentRole: string): string | null {
   }
   try {
     return readFileSync(resolvedFile, "utf-8");
-  } catch {
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code !== "ENOENT") {
+      console.warn(
+        `[claude] failed to load agent MD "${resolvedFile}":`,
+        err instanceof Error ? err.message : String(err),
+      );
+    }
     return null;
   }
 }
